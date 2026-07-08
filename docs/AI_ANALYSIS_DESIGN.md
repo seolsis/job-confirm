@@ -82,46 +82,52 @@ LLM이 자유 텍스트가 아니라 **스키마가 강제된 JSON**을 반환�
 
 ```jsonc
 {
-  "company_name":      "string | null",   // 회사명
-  "job_title":         "string | null",   // 직무 (예: 백엔드 개발자)
-  "job_category":      "string | null",   // 모집 분야 (예: 서버 개발, 데이터 엔지니어링)
-  "responsibilities":  ["string"],        // 주요 업무 (항목별 분리)
-  "requirements": [                       // 자격 요건 — 매칭의 핵심 입력
+  "company_name": "string | null", // 회사명
+  "job_title": "string | null", // 직무 (예: 백엔드 개발자)
+  "job_category": "string | null", // 모집 분야 (예: 서버 개발, 데이터 엔지니어링)
+  "responsibilities": ["string"], // 주요 업무 (항목별 분리)
+  "requirements": [
+    // 자격 요건 — 매칭의 핵심 입력
     {
-      "text": "string",                   // 요건 원문 (예: "Python 3년 이상 경험")
+      "text": "string", // 요건 원문 (예: "Python 3년 이상 경험")
       "category": "skill | experience | education | certificate | language | soft_skill | other",
-      "evidence": "string"                // 원문에서 발췌한 근거 문장
-    }
+      "evidence": "string", // 원문에서 발췌한 근거 문장
+    },
   ],
-  "preferences": [                        // 우대 사항 — requirements와 동일 구조
-    { "text": "string", "category": "...", "evidence": "string" }
+  "preferences": [
+    // 우대 사항 — requirements와 동일 구조
+    { "text": "string", "category": "...", "evidence": "string" },
   ],
-  "required_skills":   ["string"],        // 필요 기술 (요건에서 뽑은 기술 명사, 정규화: "리액트"→"React")
-  "tech_stack":        ["string"],        // 사용 기술 스택 (회사가 쓰는 기술)
-  "experience_level": {                   // 경력 요구사항
+  "required_skills": ["string"], // 필요 기술 (요건에서 뽑은 기술 명사, 정규화: "리액트"→"React")
+  "tech_stack": ["string"], // 사용 기술 스택 (회사가 쓰는 기술)
+  "experience_level": {
+    // 경력 요구사항
     "type": "entry | junior | mid | senior | any | null",
     "min_years": "number | null",
     "max_years": "number | null",
-    "raw_text": "string | null"
+    "raw_text": "string | null",
   },
-  "education": {                          // 학력
+  "education": {
+    // 학력
     "level": "none | high_school | associate | bachelor | master | phd | null",
-    "raw_text": "string | null"
+    "raw_text": "string | null",
   },
-  "location":          "string | null",   // 근무 지역
-  "salary": {                             // 연봉
-    "min": "number | null",              // 만원 단위
+  "location": "string | null", // 근무 지역
+  "salary": {
+    // 연봉
+    "min": "number | null", // 만원 단위
     "max": "number | null",
     "is_negotiable": "boolean | null",
-    "raw_text": "string | null"          // "회사 내규에 따름" 등 원문 보존
+    "raw_text": "string | null", // "회사 내규에 따름" 등 원문 보존
   },
-  "deadline": {                           // 모집 마감일
+  "deadline": {
+    // 모집 마감일
     "date": "YYYY-MM-DD | null",
-    "is_rolling": "boolean",             // 상시 채용 여부
-    "raw_text": "string | null"
+    "is_rolling": "boolean", // 상시 채용 여부
+    "raw_text": "string | null",
   },
-  "keywords":          ["string"],        // 핵심 키워드 (검색·추천·중복감지용, 5~10개)
-  "extraction_notes":  "string | null"    // 추출 중 애매했던 점 (검수용)
+  "keywords": ["string"], // 핵심 키워드 (검색·추천·중복감지용, 5~10개)
+  "extraction_notes": "string | null", // 추출 중 애매했던 점 (검수용)
 }
 ```
 
@@ -161,54 +167,62 @@ LLM이 자유 텍스트가 아니라 **스키마가 강제된 JSON**을 반환�
 
 ```jsonc
 {
-  "requirement_judgments": [              // 요건별 판정 — 점수 산출의 원천
+  "requirement_judgments": [
+    // 요건별 판정 — 점수 산출의 원천
     {
-      "requirement_text": "string",       // 1단계의 requirements[].text 그대로
+      "requirement_text": "string", // 1단계의 requirements[].text 그대로
       "verdict": "met | partial | not_met | unknown",
-      "profile_evidence": "string | null",// 판정 근거가 된 프로필 항목
-      "reason": "string"                  // 한 문장 판정 이유
-    }
+      "profile_evidence": "string | null", // 판정 근거가 된 프로필 항목
+      "reason": "string", // 한 문장 판정 이유
+    },
   ],
-  "preference_judgments": [               // 우대사항별 판정 — 동일 구조
-    { "requirement_text": "...", "verdict": "...", "profile_evidence": "...", "reason": "..." }
+  "preference_judgments": [
+    // 우대사항별 판정 — 동일 구조
+    { "requirement_text": "...", "verdict": "...", "profile_evidence": "...", "reason": "..." },
   ],
-  "fit_reasons": ["string"],              // 적합한 이유 (3~5개, 구체적 근거 포함)
-  "gaps": [                               // 부족한 역량
+  "fit_reasons": ["string"], // 적합한 이유 (3~5개, 구체적 근거 포함)
+  "gaps": [
+    // 부족한 역량
     {
-      "gap": "string",                    // 무엇이 부족한가
-      "severity": "critical | moderate | minor",  // 필수요건 미충족=critical
-      "related_requirement": "string | null"
-    }
+      "gap": "string", // 무엇이 부족한가
+      "severity": "critical | moderate | minor", // 필수요건 미충족=critical
+      "related_requirement": "string | null",
+    },
   ],
-  "strengths": [                          // 강점 (자소서·면접 어필 포인트)
-    { "strength": "string", "how_to_appeal": "string" }
+  "strengths": [
+    // 강점 (자소서·면접 어필 포인트)
+    { "strength": "string", "how_to_appeal": "string" },
   ],
-  "skills_to_learn": [                    // 공부해야 할 기술
+  "skills_to_learn": [
+    // 공부해야 할 기술
     {
       "skill": "string",
       "priority": "high | medium | low",
-      "reason": "string",                 // 왜 필요한가 (어느 요건과 연결되는가)
-      "suggestion": "string"              // 학습 방향 한 줄 제안
-    }
+      "reason": "string", // 왜 필요한가 (어느 요건과 연결되는가)
+      "suggestion": "string", // 학습 방향 한 줄 제안
+    },
   ],
-  "certificates_to_prepare": [            // 준비해야 할 자격증
-    { "certificate": "string", "reason": "string", "priority": "high | medium | low" }
+  "certificates_to_prepare": [
+    // 준비해야 할 자격증
+    { "certificate": "string", "reason": "string", "priority": "high | medium | low" },
   ],
-  "expected_interview_questions": [       // 예상 면접 질문
+  "expected_interview_questions": [
+    // 예상 면접 질문
     {
       "question": "string",
-      "intent": "string",                 // 면접관의 의도
-      "based_on": "posting | profile_gap | profile_strength"  // 질문의 출처
-    }
+      "intent": "string", // 면접관의 의도
+      "based_on": "posting | profile_gap | profile_strength", // 질문의 출처
+    },
   ],
-  "action_items": [                       // 합격 가능성을 높이기 위한 행동
+  "action_items": [
+    // 합격 가능성을 높이기 위한 행동
     {
       "action": "string",
       "timeframe": "before_apply | before_document | before_interview",
-      "expected_impact": "string"
-    }
+      "expected_impact": "string",
+    },
   ],
-  "overall_comment": "string"             // 종합 코멘트 2~3문장 (점수와 함께 상단 노출)
+  "overall_comment": "string", // 종합 코멘트 2~3문장 (점수와 함께 상단 노출)
 }
 ```
 
@@ -278,14 +292,14 @@ LLM이 자유 텍스트가 아니라 **스키마가 강제된 JSON**을 반환�
 
 ### 6.1 호출 파라미터
 
-| 항목 | 1단계 (구조화) | 2단계 (매칭) |
-|---|---|---|
-| 모델 | `claude-opus-4-8` | `claude-opus-4-8` |
-| thinking | `{"type": "adaptive"}` | `{"type": "adaptive"}` |
-| effort | `medium` (추출은 정형 작업) | `high` (판단 품질이 제품 핵심) |
-| 출력 | structured outputs (`output_config.format`, json_schema) | 동일 |
-| max_tokens | 8,000 | 16,000 |
-| 스트리밍 | 사용 (타임아웃 방지, 진행 표시) | 사용 |
+| 항목       | 1단계 (구조화)                                           | 2단계 (매칭)                   |
+| ---------- | -------------------------------------------------------- | ------------------------------ |
+| 모델       | `claude-opus-4-8`                                        | `claude-opus-4-8`              |
+| thinking   | `{"type": "adaptive"}`                                   | `{"type": "adaptive"}`         |
+| effort     | `medium` (추출은 정형 작업)                              | `high` (판단 품질이 제품 핵심) |
+| 출력       | structured outputs (`output_config.format`, json_schema) | 동일                           |
+| max_tokens | 8,000                                                    | 16,000                         |
+| 스트리밍   | 사용 (타임아웃 방지, 진행 표시)                          | 사용                           |
 
 - 점수 산식은 서버 코드이므로 LLM 호출이 아니다 (3번째 호출 없음).
 - structured outputs는 스키마 강제이므로 "JSON 파싱 실패 → 재시도" 로직이 필요 없다.
@@ -293,13 +307,13 @@ LLM이 자유 텍스트가 아니라 **스키마가 강제된 JSON**을 반환�
 
 ### 6.2 비용 통제 장치
 
-| 장치 | 내용 |
-|---|---|
-| 구조화 캐시 | `url_hash` 기준. 같은 공고는 [1]을 건너뜀 — 유효기간 7일 (공고 수정 대비), 스냅샷 해시 변경 시 무효화 |
-| 프롬프트 캐시 | 고정 시스템 프롬프트에 `cache_control` — 입력 토큰 ~90% 절감 |
-| 사용자 쿼터 | 무료 월 N회. 캐시 히트 재조회는 미차감 |
-| 사용량 기록 | 호출마다 `usage`(input/output/cache_read 토큰)를 저장 — 사용자·기능별 비용 대시보드의 원천 |
-| 재분석 일괄 처리 | 프로필 변경 후 "저장 공고 N건 재분석"은 급하지 않으므로 Message Batches API(50% 할인) 사용 검토 |
+| 장치             | 내용                                                                                                  |
+| ---------------- | ----------------------------------------------------------------------------------------------------- |
+| 구조화 캐시      | `url_hash` 기준. 같은 공고는 [1]을 건너뜀 — 유효기간 7일 (공고 수정 대비), 스냅샷 해시 변경 시 무효화 |
+| 프롬프트 캐시    | 고정 시스템 프롬프트에 `cache_control` — 입력 토큰 ~90% 절감                                          |
+| 사용자 쿼터      | 무료 월 N회. 캐시 히트 재조회는 미차감                                                                |
+| 사용량 기록      | 호출마다 `usage`(input/output/cache_read 토큰)를 저장 — 사용자·기능별 비용 대시보드의 원천            |
+| 재분석 일괄 처리 | 프로필 변경 후 "저장 공고 N건 재분석"은 급하지 않으므로 Message Batches API(50% 할인) 사용 검토       |
 
 ### 6.3 품질 관리 루프
 
@@ -329,145 +343,154 @@ users 1─────────┘         usage_logs (LLM 호출 기록)
 ### 7.2 테이블 정의
 
 #### `users`
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| id | uuid PK | |
-| email | text unique | |
-| auth_provider | text | email / google / kakao |
+
+| 컬럼                   | 타입        | 설명                                             |
+| ---------------------- | ----------- | ------------------------------------------------ |
+| id                     | uuid PK     |                                                  |
+| email                  | text unique |                                                  |
+| auth_provider          | text        | email / google / kakao                           |
 | created_at, deleted_at | timestamptz | 탈퇴 시 soft delete 후 배치 완전 삭제 (개인정보) |
 
 #### `profiles` — 현재 프로필 (사용자당 1개, 수정 가능)
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| id | uuid PK | |
-| user_id | uuid FK unique | |
-| desired_job | text | 희망 직무 |
-| desired_conditions | jsonb | 희망 연봉/지역/고용형태 |
-| educations | jsonb | `[{school, major, degree, status, period}]` |
-| experiences | jsonb | `[{company, role, period_months, description}]` |
-| skills | jsonb | `[{name, level, years}]` — name은 정규화된 기술명 |
-| certificates | jsonb | `[{name, issuer, acquired_at}]` |
-| languages | jsonb | `[{test, score, acquired_at}]` |
-| projects | jsonb | `[{name, role, description, tech}]` |
-| completeness | int | 프로필 완성도 % (서버 계산, UI 게이지용) |
-| updated_at | timestamptz | |
+
+| 컬럼               | 타입           | 설명                                              |
+| ------------------ | -------------- | ------------------------------------------------- |
+| id                 | uuid PK        |                                                   |
+| user_id            | uuid FK unique |                                                   |
+| desired_job        | text           | 희망 직무                                         |
+| desired_conditions | jsonb          | 희망 연봉/지역/고용형태                           |
+| educations         | jsonb          | `[{school, major, degree, status, period}]`       |
+| experiences        | jsonb          | `[{company, role, period_months, description}]`   |
+| skills             | jsonb          | `[{name, level, years}]` — name은 정규화된 기술명 |
+| certificates       | jsonb          | `[{name, issuer, acquired_at}]`                   |
+| languages          | jsonb          | `[{test, score, acquired_at}]`                    |
+| projects           | jsonb          | `[{name, role, description, tech}]`               |
+| completeness       | int            | 프로필 완성도 % (서버 계산, UI 게이지용)          |
+| updated_at         | timestamptz    |                                                   |
 
 > 섹션들을 jsonb로 두는 이유: 프로필 구조는 초기에 자주 바뀌고, 섹션 내부를 조인·검색할 일이 거의 없다(분석 시 통째로 직렬화). 정규화 테이블 분리는 검색·통계 요구가 생기면 그때 한다.
 
 #### `profile_snapshots` — 분석 시점의 프로필 사본 (불변)
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| id | uuid PK | |
-| user_id | uuid FK | |
-| snapshot | jsonb | 프로필 전체 직렬화 |
-| content_hash | text | 스냅샷 해시 — 프로필이 안 바뀌었으면 기존 스냅샷 재사용 (행 폭증 방지) |
-| created_at | timestamptz | |
+
+| 컬럼         | 타입        | 설명                                                                   |
+| ------------ | ----------- | ---------------------------------------------------------------------- |
+| id           | uuid PK     |                                                                        |
+| user_id      | uuid FK     |                                                                        |
+| snapshot     | jsonb       | 프로필 전체 직렬화                                                     |
+| content_hash | text        | 스냅샷 해시 — 프로필이 안 바뀌었으면 기존 스냅샷 재사용 (행 폭증 방지) |
+| created_at   | timestamptz |                                                                        |
 
 **왜 필요한가**: 매칭 결과는 "그때의 프로필" 기준이다. 스냅샷이 없으면 프로필 수정 후 과거 분석의 근거가 사라지고, "점수 변화 추적(72→81)" 기능도 만들 수 없다.
 
 #### `job_postings` — 공고 원본 (사용자 무관, 공유)
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| id | uuid PK | |
-| url | text | 원본 URL |
-| normalized_url | text | 트래킹 파라미터 제거 후 |
-| url_hash | text unique index | 캐시·중복감지 키 |
-| source_site | text | wanted / saramin / generic / manual_paste |
-| raw_snapshot | text | 정제된 본문 텍스트 (공고 삭제 대비 열람용) |
-| snapshot_hash | text | 본문 해시 — 재수집 시 변경 감지 → 구조화 캐시 무효화 |
-| status | text | active / closed / fetch_failed |
-| fetched_at, created_at | timestamptz | |
+
+| 컬럼                   | 타입              | 설명                                                 |
+| ---------------------- | ----------------- | ---------------------------------------------------- |
+| id                     | uuid PK           |                                                      |
+| url                    | text              | 원본 URL                                             |
+| normalized_url         | text              | 트래킹 파라미터 제거 후                              |
+| url_hash               | text unique index | 캐시·중복감지 키                                     |
+| source_site            | text              | wanted / saramin / generic / manual_paste            |
+| raw_snapshot           | text              | 정제된 본문 텍스트 (공고 삭제 대비 열람용)           |
+| snapshot_hash          | text              | 본문 해시 — 재수집 시 변경 감지 → 구조화 캐시 무효화 |
+| status                 | text              | active / closed / fetch_failed                       |
+| fetched_at, created_at | timestamptz       |                                                      |
 
 #### `posting_extractions` — 1단계 구조화 결과 (공고당 버전별)
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| id | uuid PK | |
-| posting_id | uuid FK | |
-| extracted | jsonb | 3.2 스키마 전체 (14개 필드 + evidence) |
-| company_name, job_title, deadline_date | (생성 컬럼/복제) | 목록·정렬·D-day 쿼리용 발췌 컬럼 |
-| model_id, prompt_version, schema_version | text | 회귀 비교용 |
-| token_usage | jsonb | input/output/cache_read |
-| created_at | timestamptz | |
+
+| 컬럼                                     | 타입             | 설명                                   |
+| ---------------------------------------- | ---------------- | -------------------------------------- |
+| id                                       | uuid PK          |                                        |
+| posting_id                               | uuid FK          |                                        |
+| extracted                                | jsonb            | 3.2 스키마 전체 (14개 필드 + evidence) |
+| company_name, job_title, deadline_date   | (생성 컬럼/복제) | 목록·정렬·D-day 쿼리용 발췌 컬럼       |
+| model_id, prompt_version, schema_version | text             | 회귀 비교용                            |
+| token_usage                              | jsonb            | input/output/cache_read                |
+| created_at                               | timestamptz      |                                        |
 
 > 공고 1건에 구조화 결과가 여러 버전 있을 수 있다(재수집·프롬프트 개선). 최신 유효 버전을 가리키는 `job_postings.latest_extraction_id`를 둔다.
 
 #### `match_analyses` — 2단계 매칭 결과 (사용자별, 불변)
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| id | uuid PK | |
-| user_id | uuid FK | |
-| extraction_id | uuid FK | 어떤 구조화 버전 기준인지 |
-| profile_snapshot_id | uuid FK | 어떤 프로필 기준인지 |
-| result | jsonb | 4.2 스키마 전체 |
-| score | int | 서버 산출 종합 점수 (0~100), "프로필 부족" 시 null |
-| grade | text | recommend / challenge / prepare / large_gap / insufficient_profile |
-| score_breakdown | jsonb | 산식 항목별 점수 (①②③) — "왜 72점" 펼쳐보기용 |
-| critical_gap_count | int | 필수요건 not_met 수 (경고 뱃지) |
-| model_id, prompt_version, schema_version | text | |
-| token_usage | jsonb | |
-| feedback | text | up / down / null |
-| feedback_reason | text | 👎 사유 (선택 입력) |
-| created_at | timestamptz | |
+
+| 컬럼                                     | 타입        | 설명                                                               |
+| ---------------------------------------- | ----------- | ------------------------------------------------------------------ |
+| id                                       | uuid PK     |                                                                    |
+| user_id                                  | uuid FK     |                                                                    |
+| extraction_id                            | uuid FK     | 어떤 구조화 버전 기준인지                                          |
+| profile_snapshot_id                      | uuid FK     | 어떤 프로필 기준인지                                               |
+| result                                   | jsonb       | 4.2 스키마 전체                                                    |
+| score                                    | int         | 서버 산출 종합 점수 (0~100), "프로필 부족" 시 null                 |
+| grade                                    | text        | recommend / challenge / prepare / large_gap / insufficient_profile |
+| score_breakdown                          | jsonb       | 산식 항목별 점수 (①②③) — "왜 72점" 펼쳐보기용                      |
+| critical_gap_count                       | int         | 필수요건 not_met 수 (경고 뱃지)                                    |
+| model_id, prompt_version, schema_version | text        |                                                                    |
+| token_usage                              | jsonb       |                                                                    |
+| feedback                                 | text        | up / down / null                                                   |
+| feedback_reason                          | text        | 👎 사유 (선택 입력)                                                |
+| created_at                               | timestamptz |                                                                    |
 
 > 불변으로 두고 재분석 시 새 행을 만든다. `(user_id, posting_id)` 기준 시계열이 곧 "점수 변화 추적" 데이터다.
 
 #### `applications` — 취준탭 카드
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| id | uuid PK | |
-| user_id, posting_id | uuid FK, unique 조합 | 같은 공고 중복 카드 방지 |
-| latest_analysis_id | uuid FK | 카드에 표시할 최신 매칭 결과 |
-| status | text | interested / planned / applied / doc_passed / test_passed / interview / accepted / rejected |
-| rejected_at_stage | text | 불합격 시 탈락 단계 (통계용) |
-| memo | text | |
-| schedule | jsonb | `[{type: interview/test/deadline, at, note}]` |
-| created_at, updated_at | timestamptz | |
+
+| 컬럼                   | 타입                 | 설명                                                                                        |
+| ---------------------- | -------------------- | ------------------------------------------------------------------------------------------- |
+| id                     | uuid PK              |                                                                                             |
+| user_id, posting_id    | uuid FK, unique 조합 | 같은 공고 중복 카드 방지                                                                    |
+| latest_analysis_id     | uuid FK              | 카드에 표시할 최신 매칭 결과                                                                |
+| status                 | text                 | interested / planned / applied / doc_passed / test_passed / interview / accepted / rejected |
+| rejected_at_stage      | text                 | 불합격 시 탈락 단계 (통계용)                                                                |
+| memo                   | text                 |                                                                                             |
+| schedule               | jsonb                | `[{type: interview/test/deadline, at, note}]`                                               |
+| created_at, updated_at | timestamptz          |                                                                                             |
 
 #### `application_status_history` — 상태 변경 이력
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| id | uuid PK | |
-| application_id | uuid FK | |
-| from_status, to_status | text | |
-| changed_at | timestamptz | 전환율 통계·회고 리포트의 원천 |
+
+| 컬럼                   | 타입        | 설명                           |
+| ---------------------- | ----------- | ------------------------------ |
+| id                     | uuid PK     |                                |
+| application_id         | uuid FK     |                                |
+| from_status, to_status | text        |                                |
+| changed_at             | timestamptz | 전환율 통계·회고 리포트의 원천 |
 
 #### `usage_logs` — LLM 호출·쿼터 기록
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| id | uuid PK | |
-| user_id | uuid FK | |
-| kind | text | extraction / match / batch_rematch |
-| was_cache_hit | boolean | 쿼터 미차감 여부 |
-| token_usage | jsonb | |
-| created_at | timestamptz | 월별 집계로 쿼터 판정 |
+
+| 컬럼          | 타입        | 설명                               |
+| ------------- | ----------- | ---------------------------------- |
+| id            | uuid PK     |                                    |
+| user_id       | uuid FK     |                                    |
+| kind          | text        | extraction / match / batch_rematch |
+| was_cache_hit | boolean     | 쿼터 미차감 여부                   |
+| token_usage   | jsonb       |                                    |
+| created_at    | timestamptz | 월별 집계로 쿼터 판정              |
 
 ### 7.3 저장 설계의 핵심 결정 요약
 
-| 결정 | 이유 |
-|---|---|
-| 공고(postings)와 카드(applications) 분리 | 구조화 결과를 사용자 간 공유 → LLM 비용 절감, 중복 감지 |
-| 구조화(extractions)와 매칭(match_analyses) 분리 | 프로필 변경 시 매칭만 재실행, 오류 원인 분리 |
-| 프로필 스냅샷 불변 저장 | 과거 분석의 근거 보존, 점수 변화 추적 |
-| 매칭 결과 불변(append-only) | 재분석 히스토리 = 성장 가시화 기능의 데이터 |
-| jsonb 중심 + 발췌 컬럼 | 스키마 진화가 잦은 초기에 유연성, 쿼리 필요한 필드만 컬럼 승격 |
-| 모델·프롬프트 버전 전 결과에 기록 | 품질 회귀 비교, 오답 원인 추적 |
-| 원문 스냅샷 보관 | 공고 삭제·마감 후에도 본인 열람 (외부 공유는 원문 링크만 — 저작권) |
+| 결정                                            | 이유                                                               |
+| ----------------------------------------------- | ------------------------------------------------------------------ |
+| 공고(postings)와 카드(applications) 분리        | 구조화 결과를 사용자 간 공유 → LLM 비용 절감, 중복 감지            |
+| 구조화(extractions)와 매칭(match_analyses) 분리 | 프로필 변경 시 매칭만 재실행, 오류 원인 분리                       |
+| 프로필 스냅샷 불변 저장                         | 과거 분석의 근거 보존, 점수 변화 추적                              |
+| 매칭 결과 불변(append-only)                     | 재분석 히스토리 = 성장 가시화 기능의 데이터                        |
+| jsonb 중심 + 발췌 컬럼                          | 스키마 진화가 잦은 초기에 유연성, 쿼리 필요한 필드만 컬럼 승격     |
+| 모델·프롬프트 버전 전 결과에 기록               | 품질 회귀 비교, 오답 원인 추적                                     |
+| 원문 스냅샷 보관                                | 공고 삭제·마감 후에도 본인 열람 (외부 공유는 원문 링크만 — 저작권) |
 
 ---
 
 ## 8. 실패·엣지 케이스 처리
 
-| 케이스 | 처리 |
-|---|---|
-| 수집 실패 (봇 차단, 로그인 벽) | `fetch_failed` 저장 → "본문을 붙여넣어 주세요" 폴백 UI. 붙여넣기 입력은 `source_site: manual_paste`로 동일 파이프라인 진입 |
+| 케이스                                | 처리                                                                                                                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 수집 실패 (봇 차단, 로그인 벽)        | `fetch_failed` 저장 → "본문을 붙여넣어 주세요" 폴백 UI. 붙여넣기 입력은 `source_site: manual_paste`로 동일 파이프라인 진입                             |
 | 본문이 공고가 아님 (404, 목록 페이지) | 1단계 프롬프트에 "채용공고가 아니면 `company_name: null` + `extraction_notes`에 사유" 규칙 → 필수 필드 다수 null이면 사용자에게 확인 요청, 쿼터 미차감 |
-| 이미지로만 된 공고 | MVP: "텍스트를 복사해 주세요" 안내. 확장: 이미지 입력(비전) 분석 |
-| 마감일이 이미 지난 공고 | 분석은 수행하되 결과 상단에 "마감된 공고" 경고 |
-| 프로필이 거의 빈 상태 | unknown 비율 50% 초과 → 점수 대신 `insufficient_profile` 등급 + 프로필 보완 유도 |
-| LLM 응답이 refusal/max_tokens로 종료 | `stop_reason` 확인 후 1회 재시도, 실패 시 쿼터 미차감 + 오류 안내 + 어드민 로그 |
-| API 429/5xx | SDK 자동 재시도(지수 백오프) + 잡 큐 재시도, 사용자에게는 "분석 대기 중" 표시 유지 |
-| 같은 공고 다른 URL (중복) | `keywords` + 회사명/직무명 유사도로 중복 후보 감지 → "이미 분석한 공고 같아요" 병합 제안 |
+| 이미지로만 된 공고                    | MVP: "텍스트를 복사해 주세요" 안내. 확장: 이미지 입력(비전) 분석                                                                                       |
+| 마감일이 이미 지난 공고               | 분석은 수행하되 결과 상단에 "마감된 공고" 경고                                                                                                         |
+| 프로필이 거의 빈 상태                 | unknown 비율 50% 초과 → 점수 대신 `insufficient_profile` 등급 + 프로필 보완 유도                                                                       |
+| LLM 응답이 refusal/max_tokens로 종료  | `stop_reason` 확인 후 1회 재시도, 실패 시 쿼터 미차감 + 오류 안내 + 어드민 로그                                                                        |
+| API 429/5xx                           | SDK 자동 재시도(지수 백오프) + 잡 큐 재시도, 사용자에게는 "분석 대기 중" 표시 유지                                                                     |
+| 같은 공고 다른 URL (중복)             | `keywords` + 회사명/직무명 유사도로 중복 후보 감지 → "이미 분석한 공고 같아요" 병합 제안                                                               |
 
 ---
 
-*구현 착수 시 이 문서의 스키마를 기준으로 마이그레이션과 API 명세를 작성한다. 산식 가중치(5.2)와 캐시 유효기간(6.2)은 운영 데이터로 튜닝하는 값이며 상수로 하드코딩하지 않는다.*
+_구현 착수 시 이 문서의 스키마를 기준으로 마이그레이션과 API 명세를 작성한다. 산식 가중치(5.2)와 캐시 유효기간(6.2)은 운영 데이터로 튜닝하는 값이며 상수로 하드코딩하지 않는다._

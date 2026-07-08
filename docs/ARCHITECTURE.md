@@ -21,17 +21,17 @@
 
 ## 1. 스택 구성 요약
 
-| 레이어 | 선택 | 용도 |
-|---|---|---|
-| 프론트엔드 | Next.js 15+ (App Router, TypeScript) | 전 화면. Server Components 기본, 인터랙션 영역만 Client Components |
-| 스타일 | Tailwind CSS | 반응형 웹 (모바일 대응) |
-| 백엔드 | Next.js Route Handlers (`app/api/*`) | 수집·분석 파이프라인, 외부 API 프록시 |
-| DB | Supabase Postgres | 설계 문서 7장의 9개 테이블 |
-| 인증 | Supabase Auth | 이메일 + Google OAuth (카카오는 확장) |
-| 실시간 | Supabase Realtime | 분석 진행 상태 푸시 (잡 테이블 구독) |
-| 파일 | Supabase Storage | (확장 단계) 이력서 PDF 업로드 |
-| LLM | Anthropic Claude API (`@anthropic-ai/sdk`) | 기본 모델 `claude-opus-4-8`, structured outputs |
-| 배포 | Vercel | Next.js 호스팅 |
+| 레이어     | 선택                                       | 용도                                                               |
+| ---------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| 프론트엔드 | Next.js 15+ (App Router, TypeScript)       | 전 화면. Server Components 기본, 인터랙션 영역만 Client Components |
+| 스타일     | Tailwind CSS                               | 반응형 웹 (모바일 대응)                                            |
+| 백엔드     | Next.js Route Handlers (`app/api/*`)       | 수집·분석 파이프라인, 외부 API 프록시                              |
+| DB         | Supabase Postgres                          | 설계 문서 7장의 9개 테이블                                         |
+| 인증       | Supabase Auth                              | 이메일 + Google OAuth (카카오는 확장)                              |
+| 실시간     | Supabase Realtime                          | 분석 진행 상태 푸시 (잡 테이블 구독)                               |
+| 파일       | Supabase Storage                           | (확장 단계) 이력서 PDF 업로드                                      |
+| LLM        | Anthropic Claude API (`@anthropic-ai/sdk`) | 기본 모델 `claude-opus-4-8`, structured outputs                    |
+| 배포       | Vercel                                     | Next.js 호스팅                                                     |
 
 ## 2. 전체 아키텍처
 
@@ -60,11 +60,11 @@ Supabase Postgres (RLS 적용)
 
 분석은 LLM 2회 호출로 수십 초가 걸린다. 선택지 비교:
 
-| 선택지 | 판단 |
-|---|---|
+| 선택지                                  | 판단                                                                                                                      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | **Next.js Route Handler (Node) — 채택** | Vercel Fluid Compute 기준 장시간 실행 가능. 코드가 한 저장소에 있고 Anthropic SDK 스트리밍을 그대로 쓴다. MVP에 가장 단순 |
-| Supabase Edge Functions | 실행 시간 제한과 Deno 런타임 제약. 굳이 백엔드를 둘로 쪼갤 이유 없음 |
-| 별도 잡 큐 (Trigger.dev, Inngest 등) | 재분석 일괄 처리·트래픽 증가 시 도입. MVP에서는 과설계 |
+| Supabase Edge Functions                 | 실행 시간 제한과 Deno 런타임 제약. 굳이 백엔드를 둘로 쪼갤 이유 없음                                                      |
+| 별도 잡 큐 (Trigger.dev, Inngest 등)    | 재분석 일괄 처리·트래픽 증가 시 도입. MVP에서는 과설계                                                                    |
 
 - Route Handler는 `export const maxDuration = 300` 으로 실행 시간을 확보하고, Claude 호출은 항상 스트리밍(`client.messages.stream`)으로 해 HTTP 타임아웃을 피한다.
 - **진행 상태 전달은 응답 스트림이 아니라 DB를 경유한다**: `analysis_jobs` 행의 `step` 컬럼을 갱신하고 클라이언트는 Supabase Realtime으로 구독. 이렇게 하면 사용자가 페이지를 이탈·새로고침해도 진행 중인 분석을 다시 붙어서 볼 수 있다.
@@ -91,11 +91,11 @@ analysis_jobs
 
 ### 3.4 Supabase 클라이언트 사용 규칙
 
-| 클라이언트 | 키 | 사용처 |
-|---|---|---|
-| 브라우저 클라이언트 | anon key | 화면 조회·취준탭 CRUD (RLS로 보호) |
-| 서버 클라이언트 (세션 쿠키) | anon key + 사용자 세션 | Server Components·Route Handler에서 사용자 소유 데이터 접근 |
-| service-role 클라이언트 | service_role key | **공유 테이블 쓰기 전용**: job_postings, posting_extractions (사용자 소유가 아니므로 RLS 우회 필요). Route Handler 내부에서만 사용, 절대 클라이언트 노출 금지 |
+| 클라이언트                  | 키                     | 사용처                                                                                                                                                        |
+| --------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 브라우저 클라이언트         | anon key               | 화면 조회·취준탭 CRUD (RLS로 보호)                                                                                                                            |
+| 서버 클라이언트 (세션 쿠키) | anon key + 사용자 세션 | Server Components·Route Handler에서 사용자 소유 데이터 접근                                                                                                   |
+| service-role 클라이언트     | service_role key       | **공유 테이블 쓰기 전용**: job_postings, posting_extractions (사용자 소유가 아니므로 RLS 우회 필요). Route Handler 내부에서만 사용, 절대 클라이언트 노출 금지 |
 
 ## 4. Supabase 스키마 & RLS 정책
 
@@ -110,11 +110,11 @@ analysis_jobs
 
 ### 4.2 RLS 정책 원칙
 
-| 테이블 | 정책 |
-|---|---|
-| profiles, profile_snapshots | `user_id = auth.uid()` 본인만 select/insert/update |
+| 테이블                                                                              | 정책                                                                                                                              |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| profiles, profile_snapshots                                                         | `user_id = auth.uid()` 본인만 select/insert/update                                                                                |
 | match_analyses, applications, application_status_history, usage_logs, analysis_jobs | 본인만 select. **insert/update는 Route Handler(서버)만** — 점수·쿼터를 클라이언트가 조작 못 하게 write 정책은 열지 않고 서버 경유 |
-| job_postings, posting_extractions | 인증 사용자 select 허용 (공유 캐시). write는 service-role만 |
+| job_postings, posting_extractions                                                   | 인증 사용자 select 허용 (공유 캐시). write는 service-role만                                                                       |
 
 - 모든 테이블에 RLS를 **기본 활성화**하고 정책이 없는 접근은 전부 차단(deny-by-default).
 - 취준탭의 상태 변경(드래그&드롭)은 예외적으로 클라이언트 직접 update를 허용하되, `application_status_history` 기록은 DB 트리거로 자동 적재해 이력 누락을 막는다.
@@ -159,12 +159,12 @@ job-confirm/
 
 ## 6. 환경 변수
 
-| 변수 | 노출 범위 | 용도 |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | 클라이언트 | Supabase 프로젝트 URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 클라이언트 | RLS 전제의 공개 키 |
-| `SUPABASE_SERVICE_ROLE_KEY` | **서버 전용** | 공유 테이블 쓰기 |
-| `ANTHROPIC_API_KEY` | **서버 전용** | Claude API |
+| 변수                            | 노출 범위     | 용도                  |
+| ------------------------------- | ------------- | --------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | 클라이언트    | Supabase 프로젝트 URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 클라이언트    | RLS 전제의 공개 키    |
+| `SUPABASE_SERVICE_ROLE_KEY`     | **서버 전용** | 공유 테이블 쓰기      |
+| `ANTHROPIC_API_KEY`             | **서버 전용** | Claude API            |
 
 - `.env.local`은 gitignore, `.env.example`에 키 목록만 커밋.
 
@@ -176,11 +176,11 @@ PRD 5.4의 마일스톤을 스택에 맞춰 구체화:
    - Next.js 프로젝트 스캐폴드 + Supabase 프로젝트 생성 + 마이그레이션(9개 테이블 + analysis_jobs + RLS)
    - `lib/scraper` (원티드·사람인 + 범용 + 붙여넣기), `lib/ai` 3단계 파이프라인, 점수 산식 단위 테스트
    - `/api/analyses` + 진행 상태 Realtime + 결과 화면(S6)
-   - *이 시점에 내부 테스트 가능 (인증은 임시 계정 1개로)*
+   - _이 시점에 내부 테스트 가능 (인증은 임시 계정 1개로)_
 2. **M2 — 계정·프로필**: Supabase Auth(이메일+Google), 온보딩 위저드(S3), 프로필 관리(S9), 프로필 스냅샷 연결
 3. **M3 — 취준탭**: 칸반(S7)·카드 상세(S8), 드래그&드롭 상태 변경 + 이력 트리거, D-day
 4. **M4 — 런칭 준비**: 쿼터, 피드백 수집, 랜딩 + 비로그인 체험(구조화까지), Vercel 배포·모니터링
 
 ---
 
-*이 문서의 결정은 MVP 기준이다. 잡 큐 도입(재분석 일괄 처리), 헤드리스 브라우저 수집, 카카오 로그인은 각각의 트리거 조건(트래픽·폴백 사용률·가입 전환율)이 충족될 때 재검토한다.*
+_이 문서의 결정은 MVP 기준이다. 잡 큐 도입(재분석 일괄 처리), 헤드리스 브라우저 수집, 카카오 로그인은 각각의 트리거 조건(트래픽·폴백 사용률·가입 전환율)이 충족될 때 재검토한다._
