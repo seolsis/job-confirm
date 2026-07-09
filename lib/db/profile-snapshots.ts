@@ -1,16 +1,21 @@
+import { createHash } from "node:crypto";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { StorageError } from "./errors";
 
 /**
- * profile_snapshots 타입 + 조회 — AI_ANALYSIS_DESIGN.md 7.2
+ * profile_snapshots 타입 + 조회 + 생성·재사용 — AI_ANALYSIS_DESIGN.md 7.2
  *
  * 매칭 분석의 입력은 프로필 원본이 아니라 "분석 시점의 프로필 사본"이다.
  * 스냅샷이 없으면 프로필 수정 후 과거 분석의 근거가 사라지고
  * 점수 변화 추적(72→81)도 불가능하다 (7.3).
  *
- * 스냅샷 생성·재사용(content_hash)은 M2(계정·프로필)에서 프로필 관리와 함께
- * 구현한다. 여기서는 파이프라인(M1-14)이 매칭 입력을 읽는 조회만 둔다.
+ * 생성·재사용(M2-2): 프로필 내용의 content_hash가 같으면 기존 스냅샷을
+ * 재사용한다 (행 폭증 방지 — 7.2). 프로필 직렬화(toProfileSnapshot)는
+ * profiles.ts에 있다 (순환 import 방지를 위해 여기서는 스냅샷만 받는다).
+ *
+ * node:crypto를 쓰므로 생성 함수는 서버 전용이다 (Route Handler·Server Component).
  */
 
 /** profiles.educations jsonb 항목 */
@@ -85,6 +90,79 @@ export interface ProfileSnapshotRow {
 }
 
 const SNAPSHOTS_TABLE = "jobConfirm_profile_snapshots";
+
+/** 정렬 키 순서로 정규화 — 키 순서만 다른 동일 내용이 같은 해시를 갖게 한다 */
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([key, child]) => [key, canonicalize(child)])
+    );
+  }
+  return value;
+}
+
+/**
+ * 스냅샷 내용 해시 (profile_snapshots.content_hash) — 순수 함수.
+ * 프로필이 안 바뀌었으면 기존 스냅샷을 재사용하는 판정 키 (7.2).
+ */
+export function snapshotContentHash(snapshot: ProfileSnapshot): string {
+  return createHash("sha256")
+    .update(JSON.stringify(canonicalize(snapshot)), "utf8")
+    .digest("hex");
+}
+
+export interface SnapshotResult {
+  row: ProfileSnapshotRow;
+  /** true면 기존 스냅샷 재사용 (insert 없음) */
+  reused: boolean;
+}
+
+/**
+ * 스냅샷 생성 또는 재사용 — 같은 사용자의 같은 content_hash가 있으면 그 행을,
+ * 없으면 새 행을 만든다. RLS가 본인 insert를 허용하므로 세션 클라이언트로 호출 가능.
+ * (호출부: 분석 요청 시 프로필을 직렬화해 넘긴다 — M2-4에서 라우트에 연결)
+ */
+export async function getOrCreateProfileSnapshot(
+  supabase: SupabaseClient,
+  userId: string,
+  snapshot: ProfileSnapshot
+): Promise<SnapshotResult> {
+  const contentHash = snapshotContentHash(snapshot);
+
+  const { data: existing, error: selectError } = await supabase
+    .from(SNAPSHOTS_TABLE)
+    .select("*")
+    .eq("user_id", userId)
+    .eq("content_hash", contentHash)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (selectError) {
+    throw new StorageError(`스냅샷 조회 실패 (user: ${userId}): ${selectError.message}`, {
+      cause: selectError,
+    });
+  }
+  if (existing !== null) {
+    return { row: existing as ProfileSnapshotRow, reused: true };
+  }
+
+  const { data, error } = await supabase
+    .from(SNAPSHOTS_TABLE)
+    .insert({ user_id: userId, snapshot, content_hash: contentHash })
+    .select()
+    .single();
+
+  if (error) {
+    throw new StorageError(`스냅샷 생성 실패 (user: ${userId}): ${error.message}`, {
+      cause: error,
+    });
+  }
+  return { row: data as ProfileSnapshotRow, reused: false };
+}
 
 /** 스냅샷 1건 조회 — 소유권 확인(user_id 대조)은 호출부(파이프라인)의 몫 */
 export async function getProfileSnapshotById(

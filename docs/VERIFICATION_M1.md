@@ -83,7 +83,11 @@ SQL Editor에서 (service 권한으로 실행):
     타 프로젝트 트리거 `on_auth_user_created`(`handle_new_user`)가 `set search_path = ''`
     상태에서 `profiles`를 비수식 참조 → 42P01로 가입 트랜잭션 롤백.
     `alter function public.handle_new_user() set search_path = public;`으로 해결 (사용자 실행)
-- [ ] 프로필 스냅샷 수동 insert:
+- [x] 프로필 스냅샷 준비 — 수동 insert 대신 **M2-2 코드로 완료** (2026-07-10):
+      RLS 세션으로 `updateProfile`(completeness 43%) → `getOrCreateProfileSnapshot`
+      생성/재사용/내용변경 시 신규 생성까지 실측 통과.
+      분석 요청용 profileSnapshotId: `ed924db0-d3bf-4d95-ae32-29f59fed9cbd`
+      (아래 수동 insert 절차는 더 이상 불필요 — 기록용으로만 유지)
   ```sql
   insert into "jobConfirm_profile_snapshots" (user_id, snapshot, content_hash)
   values (
