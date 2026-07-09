@@ -1,14 +1,20 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import type { MatchResult } from "@/lib/ai/match-schemas";
 
+import { StorageError } from "./errors";
 import type { TokenUsage } from "./posting-extractions";
 
 /**
- * match_analyses 타입 — AI_ANALYSIS_DESIGN.md 7.2
+ * match_analyses 저장 계층 — AI_ANALYSIS_DESIGN.md 7.2
  *
- * M1-10에서는 저장 구조(타입)만 정의한다. 저장 함수·불변(append-only) 정책 구현은
- * 점수 산출(M1-11)과 함께 진행한다 — score/grade가 채워져야 행이 완성되기 때문.
+ * 불변(append-only) — 재분석 시 새 행을 만든다. (user_id, posting) 기준 시계열이
+ * 곧 "점수 변화 추적" 데이터다. update 함수는 의도적으로 만들지 않는다
+ * (피드백 기록은 M4에서 별도 함수로).
  * write는 service-role 클라이언트만 가능하다 (RLS: 본인 select만 허용).
  */
+
+const ANALYSES_TABLE = "jobConfirm_match_analyses";
 
 /** DB enum "jobConfirm_analysis_grade" — 점수 산식(5.2)의 등급 구간 */
 export type AnalysisGrade =
@@ -55,8 +61,8 @@ export interface MatchAnalysisRow {
 }
 
 /**
- * insert 페이로드 — analyzeMatch() 산출물(MatchAnalysisOutput) + 참조 ID로 구성한다.
- * score/grade/score_breakdown은 M1-11 점수 산식이 채운다.
+ * insert 페이로드 — analyzeMatch() 산출물(MatchAnalysisOutput) + scoreMatch()
+ * 산출물(MatchScore) + 참조 ID로 구성한다.
  */
 export interface NewMatchAnalysis {
   user_id: string;
@@ -71,4 +77,20 @@ export interface NewMatchAnalysis {
   prompt_version: string;
   schema_version: string;
   token_usage: TokenUsage | null;
+}
+
+/** 매칭 분석 결과 저장 (append-only — 항상 새 행) */
+export async function saveMatchAnalysis(
+  supabase: SupabaseClient,
+  analysis: NewMatchAnalysis
+): Promise<MatchAnalysisRow> {
+  const { data, error } = await supabase.from(ANALYSES_TABLE).insert(analysis).select().single();
+
+  if (error) {
+    throw new StorageError(
+      `매칭 분석 저장 실패 (extraction_id: ${analysis.extraction_id}): ${error.message}`,
+      { cause: error }
+    );
+  }
+  return data as MatchAnalysisRow;
 }
