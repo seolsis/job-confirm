@@ -79,6 +79,32 @@ export interface NewMatchAnalysis {
   token_usage: TokenUsage | null;
 }
 
+/**
+ * 구조화 버전 기준 최신 매칭 결과 조회 — 결과 화면(S6)이 잡의 posting →
+ * latest_extraction_id를 따라와 읽는다. browser 클라이언트로 호출하면
+ * RLS(본인만 select)가 사용자 스코프를 보장하므로 user_id 필터는 두지 않는다.
+ */
+export async function getLatestMatchAnalysis(
+  supabase: SupabaseClient,
+  extractionId: string
+): Promise<MatchAnalysisRow | null> {
+  const { data, error } = await supabase
+    .from(ANALYSES_TABLE)
+    .select("*")
+    .eq("extraction_id", extractionId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new StorageError(
+      `매칭 분석 조회 실패 (extraction_id: ${extractionId}): ${error.message}`,
+      { cause: error }
+    );
+  }
+  return (data as MatchAnalysisRow | null) ?? null;
+}
+
 /** 매칭 분석 결과 저장 (append-only — 항상 새 행) */
 export async function saveMatchAnalysis(
   supabase: SupabaseClient,

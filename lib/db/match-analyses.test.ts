@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { MatchResult } from "@/lib/ai/match-schemas";
 
 import { StorageError } from "./errors";
-import { saveMatchAnalysis, type NewMatchAnalysis } from "./match-analyses";
+import { getLatestMatchAnalysis, saveMatchAnalysis, type NewMatchAnalysis } from "./match-analyses";
 
 /**
  * match_analyses 저장 계층 단위 테스트 — 실제 Supabase는 호출하지 않는다.
@@ -116,5 +116,51 @@ describe("saveMatchAnalysis", () => {
     const { client } = makeFakeSupabase({ insertError: { message: "boom" } });
 
     await expect(saveMatchAnalysis(client, sampleAnalysis)).rejects.toThrowError(StorageError);
+  });
+});
+
+/** select→eq→order→limit→maybeSingle 체인만 흉내 내는 조회용 fake */
+function makeFakeSelectSupabase(options: {
+  row?: Record<string, unknown> | null;
+  selectError?: { message: string };
+}): { client: SupabaseClient; filters: Array<[string, unknown]> } {
+  const filters: Array<[string, unknown]> = [];
+  const client = {
+    from: () => ({
+      select: () => ({
+        eq(key: string, value: unknown) {
+          filters.push([key, value]);
+          return {
+            order: () => ({
+              limit: () => ({
+                maybeSingle: async () =>
+                  options.selectError
+                    ? { data: null, error: options.selectError }
+                    : { data: options.row ?? null, error: null },
+              }),
+            }),
+          };
+        },
+      }),
+    }),
+  } as unknown as SupabaseClient;
+  return { client, filters };
+}
+
+describe("getLatestMatchAnalysis", () => {
+  it("extraction_id로 최신 행을 조회한다", async () => {
+    const { client, filters } = makeFakeSelectSupabase({ row: { id: "analysis-1" } });
+    const row = await getLatestMatchAnalysis(client, "ext-1");
+
+    expect(row?.id).toBe("analysis-1");
+    expect(filters).toEqual([["extraction_id", "ext-1"]]);
+  });
+
+  it("행이 없으면 null, 조회 실패면 StorageError", async () => {
+    const { client: emptyClient } = makeFakeSelectSupabase({ row: null });
+    await expect(getLatestMatchAnalysis(emptyClient, "ext-1")).resolves.toBeNull();
+
+    const { client: errorClient } = makeFakeSelectSupabase({ selectError: { message: "boom" } });
+    await expect(getLatestMatchAnalysis(errorClient, "ext-1")).rejects.toThrowError(StorageError);
   });
 });
