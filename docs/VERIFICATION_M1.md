@@ -116,7 +116,12 @@ SQL Editor에서 (service 권한으로 실행):
   });"
   ```
   검증 포인트: 반환 `job.step === 'done'`, `jobConfirm_match_analyses` 행 1건(score/grade/score_breakdown/버전 3종/token_usage), `jobConfirm_analysis_jobs` 행이 done + posting_id 연결
-- [ ] **경로 2 — 라우트 경유 (세션 필요)**: M2 로그인 화면이 생기면 브라우저에서 로그인 → 같은 요청을 `fetch('/api/analyses', ...)`로 실행 → 200 응답과 위 검증 포인트 재확인. (세션 쿠키를 수동 조립하는 방법은 `@supabase/ssr` 쿠키 포맷에 결합되므로 권장하지 않는다)
+- [ ] **경로 2 — 라우트 경유 (세션 필요)**: M2 로그인 화면이 생기면 브라우저에서 로그인 → 같은 요청을 `fetch('/api/analyses', ...)`로 실행 → 200 응답과 위 검증 포인트 재확인.
+  - 2026-07-10 부분 실측 (M2-4): 세션 쿠키를 조립해 dev 서버 `POST /api/analyses`(pastedText) 실행 →
+    **세션 인증 → 프로필 자동 스냅샷 확보(재사용) → 잡 생성 → fetching(공고 insert) → extracting 진입 →
+    Anthropic 크레딧 400 → 잡 failed(llm_error) 마감 → 502 {jobId, errorCode}** 까지 전부 정상.
+    잡 행(step failed, error_code llm_error, posting_id 연결)을 RLS 세션으로 조회 확인.
+    **남은 것은 크레딧 충전 후 같은 요청이 200으로 완주하는지뿐.**
 - [ ] **Realtime**: 경로 2 실행 중 브라우저 콘솔에서 `subscribeToAnalysisJob(browserClient, jobId, console.log)` — step 변경 이벤트(fetching→…→done) 수신 확인. RLS상 반드시 로그인 세션이 있어야 한다
 - [ ] **실패 분기**: 50자 미만 pastedText(`lib/scraper/index.ts`의 `MIN_BODY_LENGTH=50`) → job이 `failed`/`fetch_failed`인지, 존재하지 않는 snapshotId → 404 + 잡 미생성인지
 

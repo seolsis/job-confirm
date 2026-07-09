@@ -63,10 +63,10 @@ export async function proxy(request: NextRequest) {
     return withResponseCookies(NextResponse.redirect(url), response);
   }
 
-  // 로그인 상태 → 인증 화면은 홈으로
+  // 로그인 상태 → 인증 화면은 공고 입력 화면으로
   if (user !== null && AUTH_PAGES.includes(path)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/analyze";
     url.search = "";
     return withResponseCookies(NextResponse.redirect(url), response);
   }

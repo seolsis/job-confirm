@@ -3,11 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { getProfileByUserId, updateProfile } from "@/lib/db/profiles";
-import type {
-  ProfileEducation,
-  ProfileExperience,
-  ProfileSkill,
-} from "@/lib/db/profile-snapshots";
+import type { ProfileEducation, ProfileExperience, ProfileSkill } from "@/lib/db/profile-snapshots";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 /**
@@ -139,8 +135,8 @@ export default function OnboardingPage() {
         experiences: parsedExperiences,
         skills: parsedSkills,
       });
-      // 분석 입력 화면(S4)은 M2-4에서 생긴다 — 그때 목적지를 /analyze로 바꾼다
-      window.location.assign(`/?onboarded=${updated.completeness}`);
+      void updated; // 저장 후 곧바로 공고 입력(S4)으로 — 완성도 게이지는 S9(M2-5)에서 표시
+      window.location.assign("/analyze");
     } catch {
       setSubmitting(false);
       setError("저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
@@ -330,7 +326,7 @@ export default function OnboardingPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full rounded-xl bg-indigo-200 py-2.5 text-sm font-semibold text-indigo-900 transition-colors hover:bg-indigo-300 disabled:opacity-60"
         >
           {submitting ? "저장 중…" : "저장하고 시작하기"}
         </button>
@@ -372,7 +368,7 @@ function ListSection<T>({
           </div>
         ))}
       </div>
-      <button type="button" onClick={onAdd} className="mt-2 text-sm text-blue-600">
+      <button type="button" onClick={onAdd} className="mt-2 text-sm text-indigo-600">
         {addLabel}
       </button>
     </section>

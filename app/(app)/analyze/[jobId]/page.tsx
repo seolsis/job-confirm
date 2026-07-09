@@ -166,7 +166,11 @@ function ProgressList({ currentStep }: { currentStep: JobStep }) {
           <li
             key={step}
             className={`flex items-center gap-2 text-sm ${
-              isDone ? "text-gray-400" : isCurrent ? "font-semibold text-blue-700" : "text-gray-300"
+              isDone
+                ? "text-gray-400"
+                : isCurrent
+                  ? "font-semibold text-indigo-600"
+                  : "text-gray-300"
             }`}
           >
             <span aria-hidden>{isDone ? "✓" : isCurrent ? "●" : "○"}</span>
@@ -189,7 +193,7 @@ function AnalysisResult({ analysis }: { analysis: MatchAnalysisRow }) {
           <span className="text-4xl font-bold">
             {analysis.score !== null ? `${analysis.score}점` : "점수 없음"}
           </span>
-          <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
+          <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-800">
             {GRADE_LABELS[analysis.grade]}
           </span>
           {analysis.critical_gap_count > 0 && (

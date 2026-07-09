@@ -43,7 +43,8 @@ export default function SignupPage() {
       return;
     }
 
-    window.location.assign("/");
+    // 가입 직후 바로 프로필 온보딩으로 — 로그인→프로필→분석 흐름 (M2 목표)
+    window.location.assign("/profile/onboarding");
   }
 
   if (needsEmailConfirm) {
@@ -52,7 +53,7 @@ export default function SignupPage() {
         <h1 className="text-xl font-bold">확인 메일을 보냈습니다</h1>
         <p className="mt-4 text-sm text-gray-700">
           {email} 로 보낸 메일의 링크를 누르면 가입이 완료됩니다. 완료 후{" "}
-          <Link href="/login" className="text-blue-600 underline">
+          <Link href="/login" className="text-indigo-600 underline">
             로그인
           </Link>
           해 주세요.
@@ -95,7 +96,7 @@ export default function SignupPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full rounded-xl bg-indigo-200 py-2.5 text-sm font-semibold text-indigo-900 transition-colors hover:bg-indigo-300 disabled:opacity-60"
         >
           {submitting ? "가입 중…" : "회원가입"}
         </button>
@@ -103,7 +104,7 @@ export default function SignupPage() {
 
       <p className="mt-4 text-sm text-gray-600">
         이미 계정이 있으신가요?{" "}
-        <Link href="/login" className="text-blue-600 underline">
+        <Link href="/login" className="text-indigo-600 underline">
           로그인
         </Link>
       </p>

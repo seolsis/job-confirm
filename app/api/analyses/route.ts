@@ -7,6 +7,8 @@ import {
 } from "@/lib/ai/analysis-pipeline";
 import { createAnthropicClient } from "@/lib/ai/client";
 import type { JobErrorCode } from "@/lib/db/analysis-jobs";
+import { getOrCreateProfileSnapshot } from "@/lib/db/profile-snapshots";
+import { getProfileByUserId, toProfileSnapshot } from "@/lib/db/profiles";
 import { parseHttpUrl } from "@/lib/scraper/url";
 import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
@@ -14,11 +16,13 @@ import { createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
 /**
  * POST /api/analyses — 분석 파이프라인 진입점 (ARCHITECTURE.md 2장 ①~③).
  *
- * 요청 본문: { profileSnapshotId: string } + { url: string } 또는 { pastedText: string }
+ * 요청 본문: { url: string } 또는 { pastedText: string } 중 하나.
+ * 매칭 기준 스냅샷은 클라이언트가 보내지 않는다 — 세션 사용자의 현재 프로필을
+ * 직렬화해 자동 확보한다(M2-4): 같은 내용이면 기존 스냅샷 재사용(content_hash).
+ * 프로필이 비어 있으면 400(code: profile_required)으로 온보딩을 유도한다.
  *
  * 파이프라인은 이 핸들러 안에서 동기로 완주한다 (M1 — 별도 잡 큐 없음, 3.1).
  * 진행 상태는 응답이 아니라 analysis_jobs 행 + Realtime으로 전달되므로(3.3)
- * 클라이언트는 응답을 기다리는 동안 잡 행을 구독해 단계 UI를 갱신한다.
  * 실패해도 잡이 failed(error_code)로 남아 있어 폴백 UI 분기가 가능하다.
  */
 
@@ -51,14 +55,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "JSON 본문이 필요합니다" }, { status: 400 });
   }
 
-  const profileSnapshotId =
-    typeof body.profileSnapshotId === "string" ? body.profileSnapshotId : "";
   const url = typeof body.url === "string" ? body.url.trim() : "";
   const pastedText = typeof body.pastedText === "string" ? body.pastedText : "";
 
-  if (profileSnapshotId === "") {
-    return NextResponse.json({ error: "profileSnapshotId가 필요합니다" }, { status: 400 });
-  }
   if ((url !== "") === (pastedText.trim() !== "")) {
     return NextResponse.json(
       { error: "url 또는 pastedText 중 하나만 지정하세요" },
@@ -73,13 +72,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // 3. 파이프라인 실행 — 잡 생성부터 done/failed 마감까지 내부에서 처리된다
+  // 3. 매칭 기준 스냅샷 자동 확보 — 세션 클라이언트(RLS 본인)로 프로필을 읽고
+  //    같은 내용이면 기존 스냅샷을 재사용한다 (M2-2)
+  const profile = await getProfileByUserId(auth, user.id);
+  if (profile === null) {
+    // 가입 트리거가 행을 만들므로 없다는 것은 이상 상태다
+    console.error(`[api/analyses] 프로필 행 없음 (user: ${user.id}) — 가입 트리거 확인 필요`);
+    return NextResponse.json({ error: "프로필을 찾을 수 없습니다" }, { status: 500 });
+  }
+  if (profile.completeness === 0) {
+    // 빈 프로필로는 매칭이 전부 unknown → 엉터리 분석에 LLM 비용만 쓴다 (PRD 2.1)
+    return NextResponse.json(
+      { error: "프로필을 먼저 입력해 주세요", code: "profile_required" },
+      { status: 400 }
+    );
+  }
+  const { row: snapshot } = await getOrCreateProfileSnapshot(
+    auth,
+    user.id,
+    toProfileSnapshot(profile)
+  );
+
+  // 4. 파이프라인 실행 — 잡 생성부터 done/failed 마감까지 내부에서 처리된다
   try {
     const result = await runAnalysisPipeline(
       { anthropic: createAnthropicClient(), supabase: createServiceRoleSupabaseClient() },
       {
         userId: user.id,
-        profileSnapshotId,
+        profileSnapshotId: snapshot.id,
         ...(url !== "" ? { url } : { pastedText }),
       }
     );

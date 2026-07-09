@@ -36,9 +36,9 @@ export default function LoginPage() {
       return;
     }
 
-    // proxy 가드가 붙여준 원래 목적지로 복귀 (없으면 홈)
+    // proxy 가드가 붙여준 원래 목적지로 복귀 (없으면 공고 입력 화면)
     const next = new URLSearchParams(window.location.search).get("next");
-    window.location.assign(next !== null && next.startsWith("/") ? next : "/");
+    window.location.assign(next !== null && next.startsWith("/") ? next : "/analyze");
   }
 
   return (
@@ -74,7 +74,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full rounded-xl bg-indigo-200 py-2.5 text-sm font-semibold text-indigo-900 transition-colors hover:bg-indigo-300 disabled:opacity-60"
         >
           {submitting ? "로그인 중…" : "로그인"}
         </button>
@@ -82,7 +82,7 @@ export default function LoginPage() {
 
       <p className="mt-4 text-sm text-gray-600">
         계정이 없으신가요?{" "}
-        <Link href="/signup" className="text-blue-600 underline">
+        <Link href="/signup" className="text-indigo-600 underline">
           회원가입
         </Link>
       </p>
