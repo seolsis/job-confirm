@@ -59,8 +59,10 @@
 
 ### B. 키 2종 입력 후 (세션 불필요)
 
-- [ ] `.env.local`에 `SUPABASE_SERVICE_ROLE_KEY`(대시보드 Settings > API Keys > secret), `ANTHROPIC_API_KEY`(Anthropic Console) 입력
+- [x] `.env.local`에 `SUPABASE_SERVICE_ROLE_KEY`(대시보드 Settings > API Keys > secret), `ANTHROPIC_API_KEY`(Anthropic Console) 입력 (2026-07-09)
 - [ ] **cache miss**: `npm run extract:posting -- --file scripts/fixtures/sample-posting-backend.txt` → `cache miss (no_extraction) — LLM 호출` + extraction_id 출력 확인. 소요·token_usage 기록
+  - 2026-07-09 실측: **Anthropic 크레딧 부족으로 400** (`credit balance is too low`, req_011CcrcaLKVTtNXksRAAvqqb) — 크레딧 충전 후 재시도 필요.
+    부수 확인 완료: ① service key로 공고 insert 성공(posting_id 59603e48-…) ② cache_miss(no_extraction) 판정 정상 ③ API 오류가 `llm_error`로 정규화되어 실패 처리됨 — 오류 경로 실전 검증
 - [ ] **cache hit**: 출력된 posting_id로 `npm run extract:posting -- --posting-id <uuid>` 재실행 → `cache hit — LLM 호출 없음` 확인
 - [ ] 대시보드 Table Editor에서 `jobConfirm_posting_extractions` 행·발췌 컬럼(company_name/deadline_date)·`latest_extraction_id` 포인터 확인
 - [ ] 대시보드 Database > Publications에서 `supabase_realtime`에 `jobConfirm_analysis_jobs`가 있는지 확인
