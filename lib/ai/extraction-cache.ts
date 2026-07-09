@@ -19,8 +19,15 @@ import { EXTRACTION_SCHEMA_VERSION } from "./schemas";
  *    (프롬프트·스키마를 개선하면 기존 캐시는 자동으로 무효화되고 재분석된다)
  *  - 유효기간(기본 7일) 이내 — 공고가 조용히 수정되는 경우 대비
  *
- * TODO(M1-9+): 재수집 시 snapshot_hash 변경 감지로 즉시 무효화 (6.2).
- *              현재는 재수집 흐름이 없어 유효기간만으로 방어한다.
+ * ── snapshot_hash 무효화 확장 포인트 (설계만, 재수집 흐름이 생기면 구현 — 6.2) ──
+ * 공고 본문이 바뀌면 유효기간과 무관하게 캐시를 버려야 한다. 구현 시:
+ *  1. posting_extractions에 source_snapshot_hash 컬럼 추가 (마이그레이션),
+ *     savePostingExtraction()이 구조화에 쓴 posting.snapshot_hash를 복제 저장
+ *  2. CacheOptions에 currentSnapshotHash를 추가하고 evaluateExtractionCache()가
+ *     source_snapshot_hash와 비교 — 불일치면 miss(reason: "snapshot_changed")
+ *  3. 호출부는 이미 준비돼 있다: lookupExtractionCacheByUrlHash()가 posting을
+ *     함께 반환하므로 posting.snapshot_hash(재수집 갱신값)를 그대로 넘기면 된다
+ * 그 전까지는 유효기간(기본 7일)이 공고 수정에 대한 유일한 방어선이다.
  */
 
 /**

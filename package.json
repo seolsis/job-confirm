@@ -11,7 +11,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "extract:posting": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/extract-posting.ts"
+    "extract:posting": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/extract-posting.ts",
+    "lookup:url": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/lookup-url.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
