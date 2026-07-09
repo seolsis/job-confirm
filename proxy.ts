@@ -12,9 +12,16 @@ import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
  * 요청(이후의 Server Component가 읽음)과 응답(브라우저에 저장) 양쪽에 반영한다.
  * Server Component는 쿠키를 쓸 수 없으므로 갱신은 반드시 여기서 일어나야 한다.
  *
- * (app) 라우트 그룹의 로그인 가드(미인증 시 /login 리다이렉트)는
- * 로그인 화면이 생기는 M2에서 이 파일에 추가한다.
+ * 추가 역할 (M2-1): (app) 라우트 그룹의 로그인 가드 —
+ * 미인증 사용자가 보호 경로에 오면 /login?next=<경로>로 보내고,
+ * 로그인된 사용자가 인증 화면에 오면 홈으로 돌려보낸다.
  */
+
+/** 로그인 필수 경로 접두사 — app/(app) 라우트 그룹과 1:1 (ARCHITECTURE.md 5장) */
+const PROTECTED_PREFIXES = ["/analyze", "/board", "/profile", "/settings"];
+/** 로그인 상태로 볼 필요 없는 인증 화면 */
+const AUTH_PAGES = ["/login", "/signup"];
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -38,9 +45,41 @@ export async function proxy(request: NextRequest) {
   // 세션이 있으면 검증·갱신한다 (없으면 no-op).
   // 주의: createServerClient와 auth.getUser() 사이에 다른 로직을 넣지 말 것 —
   // 토큰 갱신 전에 세션을 읽으면 무작위 로그아웃 문제가 생길 수 있다.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const path = request.nextUrl.pathname;
+
+  // 미인증 → 보호 경로 차단 (로그인 후 원래 목적지로 복귀하도록 next 전달)
+  if (
+    user === null &&
+    PROTECTED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    url.searchParams.set("next", path);
+    return withResponseCookies(NextResponse.redirect(url), response);
+  }
+
+  // 로그인 상태 → 인증 화면은 홈으로
+  if (user !== null && AUTH_PAGES.includes(path)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    url.search = "";
+    return withResponseCookies(NextResponse.redirect(url), response);
+  }
 
   return response;
+}
+
+/** 리다이렉트 응답에도 세션 갱신 쿠키를 실어 보낸다 (갱신 유실 방지) */
+function withResponseCookies(redirect: NextResponse, from: NextResponse): NextResponse {
+  for (const cookie of from.cookies.getAll()) {
+    redirect.cookies.set(cookie);
+  }
+  return redirect;
 }
 
 export const config = {

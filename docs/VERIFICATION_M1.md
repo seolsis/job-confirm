@@ -76,6 +76,9 @@
 SQL Editor에서 (service 권한으로 실행):
 
 - [ ] 임시 사용자 생성 — 대시보드 Authentication > Users > "Add user"(이메일+비밀번호)가 가장 간단. 가입 트리거로 `jobConfirm_profiles` 행이 자동 생성되는지 함께 확인
+  - ⚠️ 2026-07-10 실측: admin API로 사용자 생성 시 **500 "Database error creating new user"** (error_id 019f48da-0b43-7abf-ba1e-a910f8a04760). auth.users insert가 DB 레벨에서 실패 — 이 프로젝트의 가입 트리거는 구조상 문제가 없어(SECURITY DEFINER·owner RLS 우회·전 컬럼 default) **공유 DB의 다른 프로젝트 트리거**가 유력. 진단(사용자 실행 필요):
+    1. 대시보드 Logs > Auth Logs에서 위 error_id 검색 → 실패한 문장 확인
+    2. SQL Editor: `select tgname, proname, prosecdef from pg_trigger t join pg_proc p on p.oid = t.tgfoid where tgrelid = 'auth.users'::regclass and not tgisinternal;` — auth.users의 트리거 전체 나열 (jobConfirm_on_auth_user_created 외의 것이 용의자)
 - [ ] 프로필 스냅샷 수동 insert:
   ```sql
   insert into "jobConfirm_profile_snapshots" (user_id, snapshot, content_hash)
