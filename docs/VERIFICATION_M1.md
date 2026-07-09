@@ -75,10 +75,14 @@
 
 SQL Editor에서 (service 권한으로 실행):
 
-- [ ] 임시 사용자 생성 — 대시보드 Authentication > Users > "Add user"(이메일+비밀번호)가 가장 간단. 가입 트리거로 `jobConfirm_profiles` 행이 자동 생성되는지 함께 확인
-  - ⚠️ 2026-07-10 실측: admin API로 사용자 생성 시 **500 "Database error creating new user"** (error_id 019f48da-0b43-7abf-ba1e-a910f8a04760). auth.users insert가 DB 레벨에서 실패 — 이 프로젝트의 가입 트리거는 구조상 문제가 없어(SECURITY DEFINER·owner RLS 우회·전 컬럼 default) **공유 DB의 다른 프로젝트 트리거**가 유력. 진단(사용자 실행 필요):
-    1. 대시보드 Logs > Auth Logs에서 위 error_id 검색 → 실패한 문장 확인
-    2. SQL Editor: `select tgname, proname, prosecdef from pg_trigger t join pg_proc p on p.oid = t.tgfoid where tgrelid = 'auth.users'::regclass and not tgisinternal;` — auth.users의 트리거 전체 나열 (jobConfirm_on_auth_user_created 외의 것이 용의자)
+- [x] 임시 사용자 생성 + 가입 트리거 확인 (2026-07-10 실측 완료)
+  - 사용자: m2-verify@example.com (e199ef0c-c80c-4c56-8fc8-a026b5776314)
+  - `jobConfirm_profiles` 자동 생성 확인 (가입 트리거 정상, completeness 0)
+  - 비밀번호 로그인(anon key) + 로그인 세션의 RLS 본인 조회까지 통과
+  - 해결한 장애: 최초 시도는 **500 "Database error creating new user"** — 원인은 공유 DB의
+    타 프로젝트 트리거 `on_auth_user_created`(`handle_new_user`)가 `set search_path = ''`
+    상태에서 `profiles`를 비수식 참조 → 42P01로 가입 트랜잭션 롤백.
+    `alter function public.handle_new_user() set search_path = public;`으로 해결 (사용자 실행)
 - [ ] 프로필 스냅샷 수동 insert:
   ```sql
   insert into "jobConfirm_profile_snapshots" (user_id, snapshot, content_hash)
