@@ -14,8 +14,8 @@
 | 항목                                                              | 결과                                                                                                              | 확인 방법                                                                                     |
 | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_SUPABASE_URL` / `ANON_KEY`                           | ✅ 설정됨                                                                                                         | `.env.local` 직접 확인                                                                        |
-| `SUPABASE_SERVICE_ROLE_KEY`                                       | ❌ **빈 값**                                                                                                      | `.env.local` 직접 확인                                                                        |
-| `ANTHROPIC_API_KEY`                                               | ❌ **빈 값**                                                                                                      | `.env.local` 직접 확인                                                                        |
+| `SUPABASE_SERVICE_ROLE_KEY`                                       | ✅ 입력됨 (07-09), write 실측 성공                                                                                | 공고 insert 성공 (posting_id 59603e48-…)                                                      |
+| `ANTHROPIC_API_KEY`                                               | 🔶 입력됨 (07-09), 크레딧 부족                                                                                    | 아래 "Anthropic API 키" 행 참조                                                               |
 | 원격 DB 테이블 5종 (postings/extractions/snapshots/analyses/jobs) | ✅ 존재                                                                                                           | REST 프로브 — 전부 HTTP 200 + `[]` (RLS가 anon 행 차단, 테이블 미존재면 42P01 에러가 났을 것) |
 | `POST /api/analyses` 무세션 호출                                  | ✅ 401 `{"error":"로그인이 필요합니다"}`                                                                          | dev 서버 기동 후 curl 실측                                                                    |
 | `GET /api/analyses`                                               | ✅ 405 (POST만 export)                                                                                            | curl 실측                                                                                     |
@@ -32,8 +32,8 @@
 | #   | 의존성                              | 코드 근거                                                                 | 현재 상태                                           |
 | --- | ----------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------- |
 | 1   | 세션 쿠키 (로그인 사용자)           | `app/api/analyses/route.ts:38-44` — `auth.getUser()` null이면 401         | ❌ 로그인 화면 없음(M2). 세션을 만들 UI 경로가 없다 |
-| 2   | `SUPABASE_SERVICE_ROLE_KEY`         | `lib/supabase/service-role.ts:20-25` — 빈 값이면 즉시 throw               | ❌ 빈 값                                            |
-| 3   | `ANTHROPIC_API_KEY`                 | `lib/ai/client.ts:11-17` — 빈 값이면 즉시 throw                           | ❌ 빈 값                                            |
+| 2   | `SUPABASE_SERVICE_ROLE_KEY`         | `lib/supabase/service-role.ts:20-25` — 빈 값이면 즉시 throw               | ✅ 입력됨 (write 실측 성공)                         |
+| 3   | `ANTHROPIC_API_KEY`                 | `lib/ai/client.ts:11-17` — 빈 값이면 즉시 throw                           | 🔶 입력됨 — **크레딧 부족 400** (충전 필요)         |
 | 4   | 프로필 스냅샷 행 (요청 사용자 소유) | `lib/ai/analysis-pipeline.ts:115-122` — 없으면 `snapshot_not_found` (404) | ❌ 생성 함수·UI 없음(M2 범위). 수동 insert 필요     |
 | 5   | 가입 트리거·RLS 등 스키마           | 마이그레이션 1개에 전부 포함                                              | ✅ 적용됨 (1절 프로브로 간접 확인)                  |
 
