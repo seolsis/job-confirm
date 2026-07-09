@@ -51,14 +51,17 @@ async function main(): Promise<void> {
   }
 
   const started = Date.now();
-  const { extraction } = await extractAndStorePosting(
+  const { extraction, cacheHit, cacheMissReason } = await extractAndStorePosting(
     { anthropic, supabase },
     postingId as string,
     { title: values.title ?? null, siteName: values.site ?? null }
   );
   const elapsedSec = ((Date.now() - started) / 1000).toFixed(1);
 
-  console.log(`\n구조화 완료 (${elapsedSec}s)`);
+  const cacheLabel = cacheHit
+    ? "cache hit — LLM 호출 없음"
+    : `cache miss (${cacheMissReason}) — LLM 호출`;
+  console.log(`\n구조화 완료 (${elapsedSec}s, ${cacheLabel})`);
   console.log(`  extraction_id : ${extraction.id}`);
   console.log(`  posting_id    : ${extraction.posting_id}`);
   console.log(`  company/title : ${extraction.company_name} / ${extraction.job_title}`);

@@ -52,6 +52,25 @@ export async function getJobPostingById(
   return (data as JobPostingRow | null) ?? null;
 }
 
+/** url_hash로 기존 공고 조회 — 구조화 캐시·중복 감지의 키 (unique index) */
+export async function getJobPostingByUrlHash(
+  supabase: SupabaseClient,
+  urlHash: string
+): Promise<JobPostingRow | null> {
+  const { data, error } = await supabase
+    .from(POSTINGS_TABLE)
+    .select("*")
+    .eq("url_hash", urlHash)
+    .maybeSingle();
+
+  if (error) {
+    throw new StorageError(`공고 조회 실패 (url_hash: ${urlHash}): ${error.message}`, {
+      cause: error,
+    });
+  }
+  return (data as JobPostingRow | null) ?? null;
+}
+
 /**
  * 수집 산출물(ScrapedPosting) → job_postings 행 생성.
  * 캐시 조회 없이 항상 새 행을 만든다 — url_hash 중복 시 unique 제약으로 실패하므로

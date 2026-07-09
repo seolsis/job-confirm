@@ -73,6 +73,33 @@ export function deriveExcerptColumns(extracted: PostingExtraction): {
 }
 
 /**
+ * 공고의 최신 구조화 결과 조회 — 구조화 캐시(6.2)의 후보.
+ * 버전별로 쌓이는 행 중 created_at 기준 최신 1건만 본다
+ * (버전은 앞으로만 움직이므로 이전 행이 현재 버전과 일치할 일은 없다).
+ * 실패한 구조화는 애초에 저장되지 않으므로(M1-7) 행 존재 = 성공 상태다.
+ */
+export async function getLatestExtraction(
+  supabase: SupabaseClient,
+  postingId: string
+): Promise<PostingExtractionRow | null> {
+  const { data, error } = await supabase
+    .from(EXTRACTIONS_TABLE)
+    .select("*")
+    .eq("posting_id", postingId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new StorageError(
+      `최신 구조화 결과 조회 실패 (posting_id: ${postingId}): ${error.message}`,
+      { cause: error }
+    );
+  }
+  return (data as PostingExtractionRow | null) ?? null;
+}
+
+/**
  * 구조화 결과 저장 + latest_extraction_id 포인터 갱신.
  *
  * 포인터 갱신이 실패하면 StorageError를 던진다 — 행 자체는 이미 저장됐지만

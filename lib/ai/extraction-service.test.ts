@@ -2,10 +2,13 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
+import type { PostingExtractionRow } from "@/lib/db/posting-extractions";
 import type { JobPostingRow } from "@/lib/db/postings";
 
+import { EXTRACTION_MODEL_ID } from "./extract";
 import { ExtractPostingError, extractAndStorePosting } from "./extraction-service";
-import type { PostingExtraction } from "./schemas";
+import { EXTRACT_PROMPT_VERSION } from "./prompts/extract-v1";
+import { EXTRACTION_SCHEMA_VERSION, type PostingExtraction } from "./schemas";
 
 /**
  * extraction 서비스 단위 테스트 — Anthropic도 Supabase도 실제로 호출하지 않는다.
@@ -79,6 +82,8 @@ const okTurn = { stop_reason: "end_turn", text: JSON.stringify(sampleExtraction)
 
 interface FakeSupabaseOptions {
   posting?: JobPostingRow | null;
+  /** 캐시 조회가 반환할 최신 extraction 행 (기본 없음 = cache miss) */
+  extraction?: PostingExtractionRow | null;
   selectError?: { message: string };
   insertError?: { message: string };
 }
@@ -94,10 +99,17 @@ function makeFakeSupabase(options: FakeSupabaseOptions = {}): {
       return {
         select: () => ({
           eq: () => ({
+            // job_postings 조회 경로 (eq→maybeSingle)
             maybeSingle: async () =>
               options.selectError
                 ? { data: null, error: options.selectError }
                 : { data: options.posting ?? null, error: null },
+            // posting_extractions 최신 조회 경로 (eq→order→limit→maybeSingle)
+            order: () => ({
+              limit: () => ({
+                maybeSingle: async () => ({ data: options.extraction ?? null, error: null }),
+              }),
+            }),
           }),
         }),
         insert(values: Record<string, unknown>) {
@@ -129,12 +141,15 @@ async function catchCode(promise: Promise<unknown>): Promise<ExtractPostingError
 type ExtractPostingErrorLike = ExtractPostingError;
 
 let consoleError: MockInstance;
+let consoleLog: MockInstance;
 beforeEach(() => {
-  // 실패 로깅(console.error) 검증 + 테스트 출력 소음 제거
+  // 실패(console.error)·캐시(console.log) 로깅 검증 + 테스트 출력 소음 제거
   consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
 });
 afterEach(() => {
   consoleError.mockRestore();
+  consoleLog.mockRestore();
 });
 
 describe("extractAndStorePosting — 성공 경로", () => {
@@ -146,6 +161,8 @@ describe("extractAndStorePosting — 성공 경로", () => {
 
     expect(output.posting.id).toBe("posting-1");
     expect(output.extraction.id).toBe("ext-1");
+    expect(output.cacheHit).toBe(false);
+    expect(output.cacheMissReason).toBe("no_extraction");
     expect(inserts[0].values).toMatchObject({
       posting_id: "posting-1",
       extracted: sampleExtraction,
@@ -168,6 +185,124 @@ describe("extractAndStorePosting — 성공 경로", () => {
     expect(messages[0].content).toContain(samplePosting.raw_snapshot);
     expect(messages[0].content).toContain("페이지 제목: 백엔드 채용");
     expect(messages[0].content).toContain("수집 사이트: 원티드");
+  });
+});
+
+describe("extractAndStorePosting — 구조화 캐시 (M1-8, 6.2)", () => {
+  /** 현재 버전 3종과 일치하는 유효한 캐시 행 */
+  const cachedExtraction: PostingExtractionRow = {
+    id: "ext-cached",
+    posting_id: "posting-1",
+    extracted: sampleExtraction,
+    company_name: "테스트컴퍼니",
+    job_title: "백엔드 개발자",
+    deadline_date: "2026-08-31",
+    model_id: EXTRACTION_MODEL_ID,
+    prompt_version: EXTRACT_PROMPT_VERSION,
+    schema_version: EXTRACTION_SCHEMA_VERSION,
+    token_usage: { input: 1200, output: 800, cache_read: 1000, cache_creation: 50 },
+    created_at: "2026-07-09T00:00:00Z",
+  };
+  /** 판정 시각 고정 — created_at 반나절 뒤 (유효기간 이내) */
+  const cacheOptions = { now: () => new Date("2026-07-09T12:00:00Z") };
+
+  it("cache hit: 기존 extraction을 반환하고 LLM 호출·저장을 하지 않는다", async () => {
+    const { client: anthropic, calls } = makeFakeAnthropic([okTurn]);
+    const { client: supabase, inserts } = makeFakeSupabase({
+      posting: samplePosting,
+      extraction: cachedExtraction,
+    });
+
+    const output = await extractAndStorePosting(
+      { anthropic, supabase },
+      "posting-1",
+      {},
+      cacheOptions
+    );
+
+    expect(output.cacheHit).toBe(true);
+    expect(output.extraction).toEqual(cachedExtraction);
+    expect(calls).toHaveLength(0); // AI 호출 금지
+    expect(inserts).toHaveLength(0); // 새 행도 만들지 않는다
+    expect(consoleLog).toHaveBeenCalledWith(
+      expect.stringContaining("cache_hit"),
+      expect.objectContaining({ postingId: "posting-1", extractionId: "ext-cached" })
+    );
+  });
+
+  async function expectMissAndReextract(
+    extraction: PostingExtractionRow,
+    expectedReason: string
+  ): Promise<void> {
+    const { client: anthropic, calls } = makeFakeAnthropic([okTurn]);
+    const { client: supabase, inserts } = makeFakeSupabase({
+      posting: samplePosting,
+      extraction,
+    });
+
+    const output = await extractAndStorePosting(
+      { anthropic, supabase },
+      "posting-1",
+      {},
+      cacheOptions
+    );
+
+    expect(output.cacheHit).toBe(false);
+    expect(output.cacheMissReason).toBe(expectedReason);
+    expect(calls).toHaveLength(1); // 재분석 수행
+    expect(inserts).toHaveLength(1); // 새 버전 행 저장
+    expect(consoleLog).toHaveBeenCalledWith(
+      expect.stringContaining("cache_miss"),
+      expect.objectContaining({ postingId: "posting-1", cache_reason: expectedReason })
+    );
+  }
+
+  it("schema_version이 다르면 miss → 재분석", async () => {
+    await expectMissAndReextract(
+      { ...cachedExtraction, schema_version: "extract-schema-v0" },
+      "schema_version_mismatch"
+    );
+  });
+
+  it("prompt_version이 다르면 miss → 재분석", async () => {
+    await expectMissAndReextract(
+      { ...cachedExtraction, prompt_version: "extract-v0" },
+      "prompt_version_mismatch"
+    );
+  });
+
+  it("model이 다르면 miss → 재분석", async () => {
+    await expectMissAndReextract(
+      { ...cachedExtraction, model_id: "claude-sonnet-5" },
+      "model_mismatch"
+    );
+  });
+
+  it("유효기간이 지나면 miss(expired) → 재분석", async () => {
+    await expectMissAndReextract(
+      { ...cachedExtraction, created_at: "2026-06-01T00:00:00Z" },
+      "expired"
+    );
+  });
+
+  it("이전 구조화가 실패해 행이 없으면 miss(no_extraction) → 재분석 (실패는 저장되지 않는다)", async () => {
+    const { client: anthropic, calls } = makeFakeAnthropic([okTurn]);
+    const { client: supabase, inserts } = makeFakeSupabase({
+      posting: samplePosting,
+      extraction: null,
+    });
+
+    const output = await extractAndStorePosting(
+      { anthropic, supabase },
+      "posting-1",
+      {},
+      cacheOptions
+    );
+
+    expect(output.cacheHit).toBe(false);
+    expect(output.cacheMissReason).toBe("no_extraction");
+    expect(calls).toHaveLength(1);
+    expect(inserts).toHaveLength(1);
   });
 });
 
