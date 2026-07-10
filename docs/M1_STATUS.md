@@ -78,9 +78,12 @@ Anthropic 크레딧 차단을 우회하기 위해 Gemini provider를 추가했�
 | -------------------------------------- | --------------------------------------------------------------------------------- |
 | extraction cache miss → hit (LLM #1)   | ✅ 실측 완료 — `extract:posting` 3.5s 성공(miss), 재실행 0.4s cache_hit            |
 | match(LLM #2) 판정·score 산출          | ✅ 실측 완료 — 직접 호출 20.8s, 판정 3건 타당(2.5년 vs 요구 3년 → partial), score 70 |
-| match·score DB 저장·jobs 전이          | 대기 — 임시 사용자·스냅샷 준비 필요 (체크리스트 C~D)                               |
-| `POST /api/analyses` 완주·Realtime·S6  | 대기 — 로그인 세션 필요 (M2 로그인 화면 이후)                                      |
+| match·score DB 저장·jobs 전이          | ✅ 실측 완료 — M2-3 E2E: queued→…→done 전이·match_analyses 저장 (테스트 계정)      |
+| `POST /api/analyses` 완주·Realtime·S6  | ✅ 실측 완료 — M2-3 E2E: 로그인→온보딩→분석 완주(~30s), Realtime 수신, S6 렌더     |
 | 실 사이트(원티드·사람인) 수집          | 대기 — 실 URL 필요                                                                 |
+
+M2-3 E2E에서 발견·수정된 이슈 2건: 온보딩 스킬 연차 input의 소수 차단(`step` 미지정),
+S6 진행 화면의 Realtime 조인 전 전이 유실 레이스 — 해당 커밋 메시지 참고.
 
 ---
 
