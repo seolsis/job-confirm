@@ -64,6 +64,35 @@ export async function getProfileByUserId(
 }
 
 /**
+ * 프로필 행 확보 — 없으면 빈 행을 만든다 (self-heal).
+ *
+ * 가입 트리거가 행을 만들지만, 트리거 생성(2026-07-09) 이전에 만들어진
+ * 공유 프로젝트의 기존 계정에는 행이 없다 (실측: 2026-06-16 가입 계정).
+ * RLS insert 정책(본인만)이 있어 세션 클라이언트로 만들 수 있다.
+ * 동시 요청으로 unique(user_id) 충돌이 나면 기존 행을 다시 읽는다.
+ */
+export async function ensureProfile(supabase: SupabaseClient, userId: string): Promise<ProfileRow> {
+  const existing = await getProfileByUserId(supabase, userId);
+  if (existing !== null) return existing;
+
+  const { data, error } = await supabase
+    .from(PROFILES_TABLE)
+    .insert({ user_id: userId })
+    .select()
+    .single();
+
+  if (error) {
+    // 동시 생성 경합(23505 unique_violation) — 이미 만들어졌으니 다시 읽는다
+    const raced = await getProfileByUserId(supabase, userId);
+    if (raced !== null) return raced;
+    throw new StorageError(`프로필 생성 실패 (user: ${userId}): ${error.message}`, {
+      cause: error,
+    });
+  }
+  return data as ProfileRow;
+}
+
+/**
  * 프로필 완성도 % (순수 함수) — S9의 완성도 게이지와 온보딩 보완 유도의 원천.
  * 7개 항목(희망 직무 / 희망 조건 / 학력 / 경력 / 스킬 / 자격증·어학 / 프로젝트)의
  * 채움 비율. 완성도가 분석 정확도와 직결됨을 UI에 명시한다 (PRD 3.2 S9).
@@ -92,11 +121,8 @@ export async function updateProfile(
   userId: string,
   patch: Partial<ProfileSections>
 ): Promise<ProfileRow> {
-  const current = await getProfileByUserId(supabase, userId);
-  if (current === null) {
-    // 가입 트리거가 행을 만들므로 없다는 것은 이상 상태다 (트리거 실패·수동 삭제)
-    throw new StorageError(`프로필 행이 없습니다 (user: ${userId}) — 가입 트리거 확인 필요`);
-  }
+  // 행이 없으면 만들고 진행한다 — 트리거 이전의 기존 계정도 온보딩 저장이 가능해야 한다
+  const current = await ensureProfile(supabase, userId);
 
   const merged: ProfileSections = {
     desired_job: current.desired_job,

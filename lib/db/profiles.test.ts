@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { StorageError } from "./errors";
 import {
   computeProfileCompleteness,
+  ensureProfile,
   getProfileByUserId,
   toProfileSnapshot,
   updateProfile,
@@ -141,9 +142,114 @@ describe("updateProfile", () => {
     expect(payload.completeness).toBe(43);
   });
 
-  it("프로필 행이 없으면 StorageError (가입 트리거 이상 신호)", async () => {
-    const { client } = makeFakeSupabase({ row: null });
-    await expect(updateProfile(client, "user-1", {})).rejects.toThrowError(StorageError);
+  it("프로필 행이 없으면 만들어서(self-heal) 갱신을 이어간다 — 트리거 이전 기존 계정", async () => {
+    // 조회는 계속 없음 → ensureProfile이 insert → 그 행 기준으로 update
+    let inserted = false;
+    const updates: Array<Record<string, unknown>> = [];
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: null, error: null }),
+          }),
+        }),
+        insert(values: Record<string, unknown>) {
+          inserted = true;
+          return {
+            select: () => ({
+              single: async () => ({ data: { ...sampleRow, ...values }, error: null }),
+            }),
+          };
+        },
+        update(values: Record<string, unknown>) {
+          updates.push(values);
+          return {
+            eq: () => ({
+              select: () => ({
+                single: async () => ({ data: { ...sampleRow, ...values }, error: null }),
+              }),
+            }),
+          };
+        },
+      }),
+    } as unknown as SupabaseClient;
+
+    await updateProfile(client, "user-1", { desired_job: "백엔드 개발자" });
+    expect(inserted).toBe(true);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].desired_job).toBe("백엔드 개발자");
+  });
+});
+
+/** select 결과를 순서대로 소비하는 fake — ensureProfile의 재조회 경로 검증용 */
+function makeEnsureFake(options: {
+  selectResults: Array<ProfileRow | null>;
+  insertError?: { message: string; code?: string };
+}): {
+  client: SupabaseClient;
+  inserts: Array<Record<string, unknown>>;
+} {
+  const inserts: Array<Record<string, unknown>> = [];
+  let selectCall = 0;
+  const client = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({
+            data: options.selectResults[Math.min(selectCall++, options.selectResults.length - 1)],
+            error: null,
+          }),
+        }),
+      }),
+      insert(values: Record<string, unknown>) {
+        inserts.push(values);
+        return {
+          select: () => ({
+            single: async () =>
+              options.insertError
+                ? { data: null, error: options.insertError }
+                : { data: { ...sampleRow, id: "profile-new", ...values }, error: null },
+          }),
+        };
+      },
+    }),
+  } as unknown as SupabaseClient;
+  return { client, inserts };
+}
+
+describe("ensureProfile (self-heal — 트리거 이전 기존 계정 대응)", () => {
+  it("행이 있으면 그대로 반환한다 (insert 없음)", async () => {
+    const { client, inserts } = makeEnsureFake({ selectResults: [sampleRow] });
+    const row = await ensureProfile(client, "user-1");
+
+    expect(row.id).toBe("profile-1");
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("행이 없으면 빈 행을 만든다 (user_id만 — 나머지는 DB 기본값)", async () => {
+    const { client, inserts } = makeEnsureFake({ selectResults: [null] });
+    const row = await ensureProfile(client, "user-1");
+
+    expect(row.id).toBe("profile-new");
+    expect(inserts).toEqual([{ user_id: "user-1" }]);
+  });
+
+  it("동시 생성 경합(insert 실패)이면 다시 읽어서 반환한다", async () => {
+    const { client } = makeEnsureFake({
+      selectResults: [null, sampleRow], // 첫 조회 없음 → insert 충돌 → 재조회 성공
+      insertError: { message: "duplicate key", code: "23505" },
+    });
+    const row = await ensureProfile(client, "user-1");
+
+    expect(row.id).toBe("profile-1");
+  });
+
+  it("insert 실패 + 재조회도 없으면 StorageError", async () => {
+    const { client } = makeEnsureFake({
+      selectResults: [null, null],
+      insertError: { message: "boom" },
+    });
+    await expect(ensureProfile(client, "user-1")).rejects.toThrowError(StorageError);
   });
 });
 

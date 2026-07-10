@@ -8,7 +8,7 @@ import {
 import { createAiClient } from "@/lib/ai/client";
 import type { JobErrorCode } from "@/lib/db/analysis-jobs";
 import { getOrCreateProfileSnapshot } from "@/lib/db/profile-snapshots";
-import { getProfileByUserId, toProfileSnapshot } from "@/lib/db/profiles";
+import { ensureProfile, toProfileSnapshot } from "@/lib/db/profiles";
 import { parseHttpUrl } from "@/lib/scraper/url";
 import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
@@ -73,13 +73,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // 3. 매칭 기준 스냅샷 자동 확보 — 세션 클라이언트(RLS 본인)로 프로필을 읽고
-  //    같은 내용이면 기존 스냅샷을 재사용한다 (M2-2)
-  const profile = await getProfileByUserId(auth, user.id);
-  if (profile === null) {
-    // 가입 트리거가 행을 만들므로 없다는 것은 이상 상태다
-    console.error(`[api/analyses] 프로필 행 없음 (user: ${user.id}) — 가입 트리거 확인 필요`);
-    return NextResponse.json({ error: "프로필을 찾을 수 없습니다" }, { status: 500 });
-  }
+  //    같은 내용이면 기존 스냅샷을 재사용한다 (M2-2).
+  //    행이 없으면 빈 행을 만든다 — 트리거 생성 이전의 기존 계정 대응 (self-heal)
+  const profile = await ensureProfile(auth, user.id);
   if (profile.completeness === 0) {
     // 빈 프로필로는 매칭이 전부 unknown → 엉터리 분석에 LLM 비용만 쓴다 (PRD 2.1)
     return NextResponse.json(
