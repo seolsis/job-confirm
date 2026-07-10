@@ -13,6 +13,7 @@ import {
   toJobErrorCode,
 } from "./analysis-pipeline";
 import { EXTRACTION_MODEL_ID } from "./extract";
+import { ExtractPostingError } from "./extraction-service";
 import { MATCH_MODEL_ID } from "./match";
 import type { MatchResult } from "./match-schemas";
 import { MATCH_SCHEMA_VERSION } from "./match-schemas";
@@ -534,5 +535,26 @@ describe("보조 순수 함수", () => {
   it("toJobErrorCode: 원인별 error_code 매핑", () => {
     expect(toJobErrorCode(new ScrapeError("disallowed_by_robots", "차단"))).toBe("fetch_failed");
     expect(toJobErrorCode(new Error("알 수 없는 오류"))).toBe("llm_error");
+  });
+
+  it("toJobErrorCode: provider 429는 quota_exceeded로 매핑 (Anthropic/Gemini 공통)", () => {
+    // Anthropic APIError·Gemini ApiError 모두 status 필드에 HTTP 상태를 싣는다
+    const rateLimit = Object.assign(new Error("Too Many Requests"), { status: 429 });
+
+    // 매칭 단계 — provider 오류가 래핑 없이 그대로 전파된다
+    expect(toJobErrorCode(rateLimit)).toBe("quota_exceeded");
+    // 구조화 단계 — ExtractPostingError(llm_error)로 래핑되어 cause에 담긴다
+    expect(
+      toJobErrorCode(new ExtractPostingError("llm_error", "구조화 실패", { cause: rateLimit }))
+    ).toBe("quota_exceeded");
+    // 429가 아닌 provider 오류(5xx 등)는 기존대로 llm_error
+    const serverError = Object.assign(new Error("Internal"), { status: 500 });
+    expect(
+      toJobErrorCode(new ExtractPostingError("llm_error", "구조화 실패", { cause: serverError }))
+    ).toBe("llm_error");
+    // storage_error의 cause는 검사 대상이 아니다 (provider 호출이 아님)
+    expect(
+      toJobErrorCode(new ExtractPostingError("storage_error", "저장 실패", { cause: rateLimit }))
+    ).toBe("llm_error");
   });
 });

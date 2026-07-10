@@ -40,7 +40,7 @@ const ERROR_MESSAGES: Record<JobErrorCode, string> = {
   fetch_failed: "공고를 가져오지 못했습니다. 공고 본문을 직접 붙여넣어 다시 시도해 주세요.",
   not_a_posting: "입력하신 내용이 채용공고가 아닌 것 같습니다. URL이나 본문을 확인해 주세요.",
   llm_error: "분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
-  quota_exceeded: "무료 분석 횟수를 모두 사용했습니다.",
+  quota_exceeded: "무료 분석 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.",
 };
 
 /** 등급 라벨 (AI_ANALYSIS_DESIGN.md 5.2 등급 구간) */

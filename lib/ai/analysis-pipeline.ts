@@ -238,12 +238,31 @@ export function toJobErrorCode(cause: unknown): JobErrorCode {
   if (cause instanceof ScrapeError) return "fetch_failed";
   if (cause instanceof ExtractPostingError) {
     // 본문 스냅샷이 없어 구조화 불가 → 재수집/붙여넣기 유도
-    return cause.code === "empty_snapshot" ? "fetch_failed" : "llm_error";
+    if (cause.code === "empty_snapshot") return "fetch_failed";
+    // LLM 호출이 provider 한도 초과(429)로 실패 → 재시도 안내 (llm_error와 UI 분기)
+    if (cause.code === "llm_error" && isRateLimitError(cause.cause)) return "quota_exceeded";
+    return "llm_error";
   }
   if (cause instanceof MatchError) return "llm_error";
+  // 매칭 단계의 provider API 오류는 래핑 없이 그대로 전파된다 — 429만 구분한다
+  if (isRateLimitError(cause)) return "quota_exceeded";
   // StorageError·Anthropic SDK 오류 등 나머지는 일반 분석 오류로 묶는다
   // (enum에 내부 오류용 코드가 없다 — UI는 "다시 시도" 안내)
   return "llm_error";
+}
+
+/**
+ * provider 한도 초과(HTTP 429) 판정 — Anthropic APIError와 Gemini ApiError 모두
+ * status 필드에 HTTP 상태를 싣는다. cause 체인을 따라가며 검사한다
+ * (Gemini 무료 티어는 분당/일일 한도가 낮아 운영 중 가장 흔한 실패 유형이다).
+ */
+function isRateLimitError(error: unknown, maxDepth = 4): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < maxDepth && current !== null && typeof current === "object"; depth++) {
+    if ((current as { status?: unknown }).status === 429) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
 }
 
 /**
