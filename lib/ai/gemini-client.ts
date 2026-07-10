@@ -1,7 +1,7 @@
 import "server-only"; // GOOGLE_API_KEY는 서버 전용 — 클라이언트 번들에 포함되면 빌드 실패
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { GoogleGenAI, type GenerateContentResponse } from "@google/genai";
+import { ApiError, GoogleGenAI, type GenerateContentResponse } from "@google/genai";
 
 /**
  * Gemini 어댑터 — Anthropic 클라이언트의 messages.stream(...).finalMessage()
@@ -18,6 +18,14 @@ import { GoogleGenAI, type GenerateContentResponse } from "@google/genai";
  *  - finishReason STOP → end_turn, MAX_TOKENS → max_tokens,
  *    안전 차단 계열/프롬프트 차단 → refusal (extract/match의 재시도 정책이 그대로 동작)
  *  - usageMetadata → tokenUsage 매핑 (cache_read = 암시적 캐시 히트 토큰)
+ *
+ * 일시적 오류 재시도 (2026-07-10 실측 — 503 UNAVAILABLE "high demand", 네트워크
+ * 타임아웃으로 전체 분석이 즉시 실패하는 문제 발견):
+ * Anthropic SDK는 429/5xx를 자동으로 지수 백오프 재시도하지만, 이 어댑터는
+ * fetch 계층을 직접 다루므로 같은 안전망이 없다. extract.ts/match.ts의
+ * 재시도(maxRetries)는 ExtractionError/MatchError(refusal 등 판정 결과)만
+ * 잡고 원시 예외는 그대로 던지므로, 여기서 429/5xx/네트워크 오류에 한해
+ * 별도로 재시도한다.
  */
 
 /** extract.ts / match.ts가 실제로 보내는 파라미터의 구조적 타입 */
@@ -31,6 +39,38 @@ interface AnthropicShapedStreamParams {
     format?: { type: string; schema?: unknown };
   };
   [key: string]: unknown;
+}
+
+/** 재시도 대상 HTTP 상태 — 과부하/일시 장애/쿼터 (429는 quota_exceeded 매핑과 별개로 몇 초 뒤엔 풀리는 경우가 많아 재시도 가치가 있다) */
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+const MAX_TRANSIENT_RETRIES = 3;
+const BASE_DELAY_MS = 800;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** ApiError.status(HTTP 상태) 또는 네트워크 계층 예외(TypeError: fetch failed 등)를 재시도 대상으로 판단 */
+function isRetryable(error: unknown): boolean {
+  if (error instanceof ApiError) return RETRYABLE_STATUS.has(error.status);
+  // fetch 자체가 실패한 경우(undici HeadersTimeoutError, ECONNRESET 등) — SDK가 TypeError로 감싼다
+  return error instanceof TypeError;
+}
+
+/** 지수 백오프 + 지터로 일시적 오류만 재시도한다. 재시도 대상이 아니거나 소진되면 그대로 던진다 */
+async function withTransientRetry<T>(call: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
+    try {
+      return await call();
+    } catch (error) {
+      lastError = error;
+      if (attempt === MAX_TRANSIENT_RETRIES || !isRetryable(error)) throw error;
+      const delay = BASE_DELAY_MS * 2 ** attempt + Math.random() * 300;
+      await sleep(delay);
+    }
+  }
+  throw lastError;
 }
 
 /** 안전/정책 차단 계열 finishReason — Anthropic의 refusal에 대응시킨다 */
@@ -62,22 +102,24 @@ export function createGeminiClient(): Anthropic {
       stream(params: AnthropicShapedStreamParams) {
         return {
           async finalMessage() {
-            const response = await genai.models.generateContent({
-              model: params.model,
-              contents: toUserText(params.messages),
-              config: {
-                systemInstruction: toSystemText(params.system),
-                maxOutputTokens: params.max_tokens,
-                responseMimeType: "application/json",
-                ...(params.output_config?.format?.schema !== undefined && {
-                  responseJsonSchema: params.output_config.format.schema,
-                }),
-                // effort high(매칭)는 동적 thinking, 그 외(구조화 등 정형 작업)는 비활성
-                thinkingConfig: {
-                  thinkingBudget: params.output_config?.effort === "high" ? -1 : 0,
+            const response = await withTransientRetry(() =>
+              genai.models.generateContent({
+                model: params.model,
+                contents: toUserText(params.messages),
+                config: {
+                  systemInstruction: toSystemText(params.system),
+                  maxOutputTokens: params.max_tokens,
+                  responseMimeType: "application/json",
+                  ...(params.output_config?.format?.schema !== undefined && {
+                    responseJsonSchema: params.output_config.format.schema,
+                  }),
+                  // effort high(매칭)는 동적 thinking, 그 외(구조화 등 정형 작업)는 비활성
+                  thinkingConfig: {
+                    thinkingBudget: params.output_config?.effort === "high" ? -1 : 0,
+                  },
                 },
-              },
-            });
+              })
+            );
             return toAnthropicShapedMessage(params.model, response);
           },
         };

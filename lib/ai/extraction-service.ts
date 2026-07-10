@@ -135,8 +135,8 @@ export async function extractAndStorePosting(
       // 재시도까지 소진된 구조화 실패 (refusal/truncated/empty_output/invalid_json)
       logFailure("구조화 실패 (재시도 소진)", { postingId, code: cause.code, cause });
     } else {
-      // Anthropic API 오류 (429/5xx 등 — SDK 백오프 재시도 이후에도 실패)
-      logFailure("Anthropic API 오류", { postingId, cause });
+      // LLM API 오류 (429/5xx 등 — 재시도 이후에도 실패. provider는 lib/ai/provider.ts 참고)
+      logFailure("LLM API 오류", { postingId, cause });
     }
     throw new ExtractPostingError("llm_error", `공고 구조화 실패: ${postingId}`, { cause });
   }

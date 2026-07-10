@@ -349,7 +349,7 @@ describe("extractAndStorePosting — 실패 코드 정규화와 로깅", () => {
     );
   });
 
-  it("Anthropic API 예외(429/5xx)도 llm_error로 정규화한다", async () => {
+  it("LLM API 예외(429/5xx)도 llm_error로 정규화한다", async () => {
     const { client: anthropic } = makeFakeAnthropic([
       { stop_reason: "end_turn", throws: new Error("rate limited") },
     ]);
@@ -358,7 +358,7 @@ describe("extractAndStorePosting — 실패 코드 정규화와 로깅", () => {
     const error = await catchCode(extractAndStorePosting({ anthropic, supabase }, "posting-1"));
     expect(error.code).toBe("llm_error");
     expect(consoleError).toHaveBeenCalledWith(
-      expect.stringContaining("Anthropic API 오류"),
+      expect.stringContaining("LLM API 오류"),
       expect.anything()
     );
   });
