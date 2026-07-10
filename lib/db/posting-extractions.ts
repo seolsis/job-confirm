@@ -72,6 +72,25 @@ export function deriveExcerptColumns(extracted: PostingExtraction): {
   };
 }
 
+/** 구조화 결과 단건 조회 — 카드 저장 API가 analysis.extraction_id → posting_id를 따라갈 때 사용 */
+export async function getExtractionById(
+  supabase: SupabaseClient,
+  extractionId: string
+): Promise<PostingExtractionRow | null> {
+  const { data, error } = await supabase
+    .from(EXTRACTIONS_TABLE)
+    .select("*")
+    .eq("id", extractionId)
+    .maybeSingle();
+
+  if (error) {
+    throw new StorageError(`구조화 결과 조회 실패 (id: ${extractionId}): ${error.message}`, {
+      cause: error,
+    });
+  }
+  return (data as PostingExtractionRow | null) ?? null;
+}
+
 /**
  * 공고의 최신 구조화 결과 조회 — 구조화 캐시(6.2)의 후보.
  * 버전별로 쌓이는 행 중 created_at 기준 최신 1건만 본다

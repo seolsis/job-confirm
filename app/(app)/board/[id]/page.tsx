@@ -1,0 +1,287 @@
+"use client";
+
+import Link from "next/link";
+import { use, useEffect, useMemo, useState } from "react";
+
+import {
+  APPLICATION_STATUSES,
+  daysUntil,
+  getApplicationCard,
+  updateApplicationMemo,
+  updateApplicationStatus,
+  type ApplicationCard,
+  type ApplicationStatus,
+} from "@/lib/db/applications";
+import { getMatchAnalysisById, type MatchAnalysisRow } from "@/lib/db/match-analyses";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+
+import { AnalysisResult } from "../../analysis-result";
+import { REJECTED_STAGES, STATUS_META } from "../status-meta";
+
+/**
+ * S8 — 공고 카드 상세 (M3-4, PRD 3.1).
+ *
+ * 분석 결과 다시 보기(공용 AnalysisResult), 메모 작성, 상태 변경(8단계 자유 이동 —
+ * 불합격 선택 시 탈락 단계 기록), 마감 D-day, 원문 링크.
+ * 상태·메모는 RLS가 허용하는 클라이언트 직접 update (이력은 DB 트리거).
+ */
+export default function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+
+  const [card, setCard] = useState<ApplicationCard | null>(null);
+  const [analysis, setAnalysis] = useState<MatchAnalysisRow | null>(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [memo, setMemo] = useState("");
+  const [memoSaved, setMemoSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const loaded = await getApplicationCard(supabase, id);
+        if (loaded === null) {
+          setError("카드를 찾을 수 없어… 주소를 확인하거나 로그인 상태를 확인해 줘.");
+        } else {
+          setCard(loaded);
+          setMemo(loaded.application.memo ?? "");
+          if (loaded.application.latest_analysis_id !== null) {
+            // 분석 결과는 미리 받아두고 [다시 보기]로 펼친다
+            const analysisRow = await getMatchAnalysisById(
+              supabase,
+              loaded.application.latest_analysis_id
+            );
+            setAnalysis(analysisRow);
+          }
+        }
+      } catch {
+        setError("카드를 불러오지 못했어. 새로고침해 줄래?");
+      }
+      setLoading(false);
+    })();
+  }, [supabase, id]);
+
+  async function handleStatusChange(status: ApplicationStatus, rejectedAtStage?: string) {
+    if (card === null) return;
+    const previous = card.application;
+    // 낙관적 반영
+    setCard({
+      ...card,
+      application: {
+        ...previous,
+        status,
+        rejected_at_stage:
+          status === "rejected" ? (rejectedAtStage ?? previous.rejected_at_stage) : null,
+      },
+    });
+    try {
+      const updated = await updateApplicationStatus(supabase, previous.id, status, {
+        rejectedAtStage:
+          status === "rejected"
+            ? (rejectedAtStage ?? previous.rejected_at_stage ?? STATUS_META[previous.status].label)
+            : null,
+      });
+      setCard((current) => (current === null ? null : { ...current, application: updated }));
+    } catch {
+      setCard((current) => (current === null ? null : { ...current, application: previous }));
+      setError("상태를 저장하지 못했어… 잠시 후 다시 시도해 줘.");
+    }
+  }
+
+  async function handleMemoSave() {
+    if (card === null) return;
+    setSaving(true);
+    setMemoSaved(false);
+    try {
+      const updated = await updateApplicationMemo(supabase, card.application.id, memo);
+      setCard((current) => (current === null ? null : { ...current, application: updated }));
+      setMemoSaved(true);
+    } catch {
+      setError("메모를 저장하지 못했어… 잠시 후 다시 시도해 줘.");
+    }
+    setSaving(false);
+  }
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-100 via-[#fef6e4] to-[#fef6e4] px-4">
+        <p className="text-center text-sm text-stone-400">
+          <span className="animate-hop inline-block text-3xl" aria-hidden>
+            🐾
+          </span>
+          <br />
+          카드를 펼치는 중…
+        </p>
+      </main>
+    );
+  }
+
+  if (card === null) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-100 via-[#fef6e4] to-[#fef6e4] px-4">
+        <div className="text-center">
+          <div className="animate-float text-6xl" aria-hidden>
+            🥺
+          </div>
+          <div className="bubble bubble-center mx-auto mt-5 max-w-xs text-sm text-stone-600">
+            {error ?? "카드를 찾을 수 없어…"}
+          </div>
+          <Link href="/board" className="mt-6 inline-block text-sm text-amber-600 underline">
+            보드로 돌아가기
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  const dday = daysUntil(card.deadline_date);
+  const status = card.application.status;
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-sky-100 via-[#fef6e4] to-[#fef6e4] px-4 py-10">
+      <div className="mx-auto max-w-3xl">
+        <Link
+          href="/board"
+          className="text-sm text-stone-400 transition-colors hover:text-stone-600"
+        >
+          ← 보드로 돌아가기
+        </Link>
+
+        {/* 카드 헤더 — 회사/직무/마감/원문 (PRD S8) */}
+        <section className="mt-4 rounded-[2rem] border-2 border-amber-100 bg-white p-6 shadow-[0_4px_0_#fde68a]">
+          <p className="text-sm text-stone-400">{card.company_name ?? "회사명 없음"}</p>
+          <h1 className="mt-1 text-xl text-stone-700">{card.job_title ?? "직무 정보 없음"}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            {dday !== null &&
+              (dday < 0 ? (
+                <span className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-400">마감됨</span>
+              ) : (
+                <span
+                  className={`rounded-full px-2.5 py-1 ${
+                    dday <= 3 ? "bg-rose-100 font-medium text-rose-600" : "bg-sky-50 text-sky-600"
+                  }`}
+                >
+                  {dday === 0 ? "오늘 마감!" : `마감까지 D-${dday}`}
+                </span>
+              ))}
+            {card.url !== null && (
+              <a
+                href={card.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border-2 border-amber-100 bg-white px-2.5 py-1 text-stone-500 transition-colors hover:text-stone-700"
+              >
+                공고 원문 보기 ↗
+              </a>
+            )}
+          </div>
+
+          {/* 상태 변경 — 8단계 자유 이동 (PRD 2.3) */}
+          <div className="mt-5">
+            <p className="text-xs text-stone-400">지금 어느 정거장이야?</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {APPLICATION_STATUSES.map((candidate) => {
+                const meta = STATUS_META[candidate];
+                const active = candidate === status;
+                return (
+                  <button
+                    key={candidate}
+                    type="button"
+                    onClick={() => void handleStatusChange(candidate)}
+                    className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
+                      active
+                        ? "bg-amber-300 text-amber-950"
+                        : "border-2 border-amber-100 bg-white text-stone-500 hover:bg-amber-50"
+                    }`}
+                  >
+                    {meta.emoji} {meta.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 불합격 시 탈락 단계 기록 (전환율 통계의 재료 — PRD 2.3) */}
+            {status === "rejected" && (
+              <div className="mt-3 rounded-2xl border-2 border-stone-100 bg-stone-50/60 p-3">
+                <p className="text-xs text-stone-500">어느 단계에서 아쉬웠어? (통계에 쓰여)</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {REJECTED_STAGES.map((stage) => (
+                    <button
+                      key={stage}
+                      type="button"
+                      onClick={() => void handleStatusChange("rejected", stage)}
+                      className={`rounded-full px-3 py-1 text-xs ${
+                        card.application.rejected_at_stage === stage
+                          ? "bg-stone-400 text-white"
+                          : "border-2 border-stone-200 bg-white text-stone-500"
+                      }`}
+                    >
+                      {stage}
+                    </button>
+                  ))}
+                  {card.application.rejected_at_stage !== null &&
+                    !REJECTED_STAGES.includes(
+                      card.application.rejected_at_stage as (typeof REJECTED_STAGES)[number]
+                    ) && (
+                      <span className="rounded-full bg-stone-400 px-3 py-1 text-xs text-white">
+                        {card.application.rejected_at_stage}
+                      </span>
+                    )}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* 메모 (PRD S8 — 지원 이유, 면접 후기 등) */}
+        <section className="mt-6 rounded-[2rem] border-2 border-amber-100 bg-white p-6 shadow-[0_4px_0_#fde68a]">
+          <h2 className="text-base text-stone-700">📝 메모</h2>
+          <textarea
+            rows={5}
+            placeholder="지원 이유, 준비할 것, 면접 후기… 뭐든 적어둬!"
+            value={memo}
+            onChange={(e) => {
+              setMemo(e.target.value);
+              setMemoSaved(false);
+            }}
+            className="mt-3 w-full rounded-2xl border-2 border-amber-100 bg-white px-4 py-3 text-sm text-stone-700 outline-none placeholder:text-stone-300 focus:border-amber-300"
+          />
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-emerald-600">{memoSaved ? "✅ 저장했어!" : ""}</span>
+            <button
+              type="button"
+              onClick={() => void handleMemoSave()}
+              disabled={saving}
+              className="rounded-full bg-amber-300 px-5 py-2 text-xs text-amber-950 shadow-[0_3px_0_#f59e0b] transition-transform hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none disabled:opacity-60"
+            >
+              {saving ? "저장 중…" : "메모 저장"}
+            </button>
+          </div>
+        </section>
+
+        {/* 분석 결과 다시 보기 (PRD S8) */}
+        {analysis !== null && (
+          <section className="mt-6">
+            <button
+              type="button"
+              onClick={() => setShowAnalysis((v) => !v)}
+              className="w-full rounded-full border-2 border-amber-200 bg-white py-3 text-sm text-stone-600 transition-transform hover:-translate-y-0.5"
+            >
+              🦉 부엉 박사의 분석 리포트 {showAnalysis ? "접기 ▲" : "다시 보기 ▼"}
+            </button>
+            {showAnalysis && <AnalysisResult analysis={analysis} />}
+          </section>
+        )}
+
+        {error !== null && card !== null && (
+          <p className="mt-4 rounded-2xl border-2 border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+            🥺 {error}
+          </p>
+        )}
+      </div>
+    </main>
+  );
+}

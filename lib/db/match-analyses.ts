@@ -79,6 +79,25 @@ export interface NewMatchAnalysis {
   token_usage: TokenUsage | null;
 }
 
+/** 매칭 결과 단건 조회 — 카드 상세(S8)의 "분석 결과 다시 보기"와 저장 API의 소유권 확인용 */
+export async function getMatchAnalysisById(
+  supabase: SupabaseClient,
+  analysisId: string
+): Promise<MatchAnalysisRow | null> {
+  const { data, error } = await supabase
+    .from(ANALYSES_TABLE)
+    .select("*")
+    .eq("id", analysisId)
+    .maybeSingle();
+
+  if (error) {
+    throw new StorageError(`매칭 분석 조회 실패 (id: ${analysisId}): ${error.message}`, {
+      cause: error,
+    });
+  }
+  return (data as MatchAnalysisRow | null) ?? null;
+}
+
 /**
  * 구조화 버전 기준 최신 매칭 결과 조회 — 결과 화면(S6)이 잡의 posting →
  * latest_extraction_id를 따라와 읽는다. browser 클라이언트로 호출하면
