@@ -32,6 +32,12 @@ export interface SiteAdapter {
   matches(url: URL): boolean;
   /** HTML에서 공고 본문 추출. 실패(구조 변경, 빈 페이지 등) 시 null */
   extract(html: string): ExtractedContent | null;
+  /**
+   * 본문이 별도 문서에 있는 사이트(예: 사람인 — 상세가 iframe으로 로드됨)의
+   * 추가 수집 URL. 있으면 오케스트레이터가 이 문서를 함께 받아 우선 추출한다.
+   * 해당 없으면 null. (순수 함수 — URL 변환만)
+   */
+  detailUrl?(url: URL): URL | null;
 }
 
 /**

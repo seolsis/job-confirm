@@ -4,9 +4,12 @@ import type { ExtractedContent, SiteAdapter } from "../types";
 /**
  * 사람인(saramin.co.kr) 어댑터 — MVP 우선 어댑터 (PRD 5.2, Q5).
  *
- * 사람인 공고 상세는 서버 렌더링된 요약 영역(.jv_summary/.jv_cont)을 갖는다.
- * 상세 본문 iframe(외부 문서)은 접근하지 않고, 페이지 내 텍스트만 수집한다.
- * 대상 선택자가 모두 비어 있으면 null을 반환해 범용 추출기로 폴백한다.
+ * 공고 상세 페이지(relay/view)의 SSR HTML에는 본문이 없다 — JD는 JS가
+ * iframe(relay/view-detail?rec_idx=…)으로 로드한다 (2026-07-10 실측:
+ * 메인 페이지는 정제 후 50자 미만 → empty_content의 원인).
+ * 그래서 detailUrl()로 상세 문서를 추가 수집하고, extract()는 그 문서의
+ * .user_content 등에서 본문을 뽑는다. 상세 수집이 실패하면 오케스트레이터가
+ * 메인 페이지 추출 → 범용 추출기 → 붙여넣기 폴백 순으로 내려간다.
  */
 
 /** 공고 본문이 담기는 영역 선택자 (우선순위 순) */
@@ -25,6 +28,15 @@ export const saraminAdapter: SiteAdapter = {
 
   matches(url: URL): boolean {
     return url.hostname === "saramin.co.kr" || url.hostname.endsWith(".saramin.co.kr");
+  },
+
+  /** JD 본문이 담긴 상세 문서 (메인 페이지가 iframe으로 로드하는 그 문서) */
+  detailUrl(url: URL): URL | null {
+    const recIdx = url.searchParams.get("rec_idx");
+    if (recIdx === null || recIdx === "") return null;
+    return new URL(
+      `https://www.saramin.co.kr/zf_user/jobs/relay/view-detail?rec_idx=${encodeURIComponent(recIdx)}`
+    );
   },
 
   extract(html: string): ExtractedContent | null {

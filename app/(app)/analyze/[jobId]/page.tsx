@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
 
 import type { JudgmentVerdict } from "@/lib/ai/match-schemas";
@@ -174,14 +175,33 @@ export default function AnalysisJobPage({ params }: { params: Promise<{ jobId: s
             여행 소식을 확인하는 중…
           </p>
         ) : job.step === "failed" ? (
-          <SadFriendBox
-            message={
-              job.error_code !== null
-                ? ERROR_MESSAGES[job.error_code]
-                : "분석에 실패했어… 다시 시도해 줄래?"
-            }
-            detail={job.error_code ?? undefined}
-          />
+          <>
+            <SadFriendBox
+              message={
+                job.error_code !== null
+                  ? ERROR_MESSAGES[job.error_code]
+                  : "분석에 실패했어… 다시 시도해 줄래?"
+              }
+              detail={job.error_code ?? undefined}
+            />
+            {/* 다음 행동 안내 — 수집 실패류는 붙여넣기 폴백으로 바로 보낸다 (PRD 7.1) */}
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              {(job.error_code === "fetch_failed" || job.error_code === "not_a_posting") && (
+                <Link
+                  href="/analyze?mode=paste"
+                  className="rounded-full bg-amber-300 px-6 py-3 text-sm text-amber-950 shadow-[0_4px_0_#f59e0b] transition-transform hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none"
+                >
+                  📋 본문 붙여넣기로 다시 해볼래
+                </Link>
+              )}
+              <Link
+                href="/analyze"
+                className="rounded-full border-2 border-amber-200 bg-white px-6 py-3 text-sm text-stone-600 transition-transform hover:-translate-y-0.5"
+              >
+                다른 공고 분석하기
+              </Link>
+            </div>
+          </>
         ) : (
           <>
             <JourneyTrail currentStep={job.step} />

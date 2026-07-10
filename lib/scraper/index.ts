@@ -3,6 +3,7 @@ import { saraminAdapter } from "./adapters/saramin";
 import { wantedAdapter } from "./adapters/wanted";
 import { cleanText } from "./clean";
 import { fetchHtml, type FetchHtmlOptions } from "./fetch";
+import { extractPageMeta, loadHtml } from "./html";
 import { parseHttpUrl, normalizeUrl, snapshotHash, urlHash } from "./url";
 import { ScrapeError, type ExtractedContent, type ScrapedPosting, type SiteAdapter } from "./types";
 
@@ -33,10 +34,34 @@ export async function scrapeJobPosting(
 
   const { html } = await fetchHtml(url, fetchOptions);
 
-  // 전용 어댑터 → 실패 시 범용 추출기 폴백
   const adapter = SITE_ADAPTERS.find((a) => a.matches(url));
   let sourceSite = adapter?.sourceSite ?? genericAdapter.sourceSite;
-  let content: ExtractedContent | null = adapter?.extract(html) ?? null;
+  let content: ExtractedContent | null = null;
+
+  // 본문이 별도 문서에 있는 사이트(사람인 iframe 등) — 상세 문서를 추가 수집해 우선 추출.
+  // 상세 수집·추출이 실패하면 조용히 메인 페이지 추출로 내려간다.
+  const detailUrl = adapter?.detailUrl?.(url) ?? null;
+  if (adapter && detailUrl !== null) {
+    try {
+      const { html: detailHtml } = await fetchHtml(detailUrl, fetchOptions);
+      content = adapter.extract(detailHtml);
+      if (content !== null) {
+        // 상세 문서의 title은 무의미한 경우가 많다("채용공고 상세") —
+        // 실제 공고명이 있는 메인 페이지 메타를 우선한다
+        const mainMeta = extractPageMeta(loadHtml(html));
+        content = {
+          ...content,
+          title: mainMeta.title ?? content.title,
+          siteName: content.siteName ?? mainMeta.siteName,
+        };
+      }
+    } catch {
+      content = null;
+    }
+  }
+
+  // 전용 어댑터(메인 페이지) → 실패 시 범용 추출기 폴백
+  if (content === null) content = adapter?.extract(html) ?? null;
   if (content === null) {
     sourceSite = genericAdapter.sourceSite;
     content = genericAdapter.extract(html);

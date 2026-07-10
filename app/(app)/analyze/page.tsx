@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
 
 /**
  * S4 — 메인 공고 입력 (PRD 3.2). "동물 친구들의 모험" 컨셉:
@@ -15,8 +16,21 @@ import { useState, type FormEvent } from "react";
 
 type InputMode = "url" | "paste";
 
+/** useSearchParams는 정적 페이지에서 Suspense 경계가 필요하다 (Next 규칙) */
 export default function AnalyzeInputPage() {
-  const [mode, setMode] = useState<InputMode>("url");
+  return (
+    <Suspense fallback={null}>
+      <AnalyzeInputForm />
+    </Suspense>
+  );
+}
+
+function AnalyzeInputForm() {
+  // 실패 화면의 "본문 붙여넣기로 다시" 버튼이 ?mode=paste로 진입시킨다
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<InputMode>(
+    searchParams.get("mode") === "paste" ? "paste" : "url"
+  );
   const [url, setUrl] = useState("");
   const [pastedText, setPastedText] = useState("");
   const [submitting, setSubmitting] = useState(false);
