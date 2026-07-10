@@ -9,11 +9,11 @@
 
 ## 결론
 
-**M1 개발 완료, 실 API 검증만 대기.**
+**M1 개발 완료. 실 LLM 검증은 Gemini 전환(하단 5절)으로 일부 완료.**
 
 M1 범위(ARCHITECTURE.md 7.1의 "M1 — 분석 코어")에서 더 구현할 코드는 없다.
-유일한 차단 요인은 Anthropic API 크레딧(2026-07-10 재확인: `credit balance is too low`,
-req_011CcsCRJpAQL9qwCJ9x6Zxx) — 충전 즉시 `docs/VERIFICATION_M1.md` 체크리스트 B부터 재개한다.
+당초 차단 요인이던 Anthropic API 크레딧(2026-07-10 확인: `credit balance is too low`)은
+Gemini provider 추가(AI_PROVIDER=gemini, 무료 티어)로 우회했다 — LLM #1/#2 실호출 검증 완료.
 
 ## 1. 완료 항목 (확인 대상 8종)
 
@@ -58,6 +58,30 @@ Supabase 클라이언트 3종·proxy(M1-3), 테스트 인프라(M1-6), 검증 �
 | `POST /api/analyses` 200 완주, Realtime 수신, S6 실데이터 렌더 | 위 항목 + 로그인 세션 (M2 로그인 화면 이후가 자연스러움)                              |
 | 실 사이트(원티드·사람인) 수집                                  | 크레딧 + 실 URL — 마크업 변경 리스크는 범용 폴백이 흡수                               |
 
+## 5. 갱신 — Gemini provider 추가 및 실 LLM 검증 (2026-07-10)
+
+Anthropic 크레딧 차단을 우회하기 위해 Gemini provider를 추가했다 (커밋 `4380f09`).
+
+- **전환 방법**: `.env.local`의 `AI_PROVIDER=gemini|anthropic` (미설정 시 anthropic).
+  Gemini는 `GOOGLE_API_KEY` 필요 (https://aistudio.google.com/apikey).
+- **구조**: `lib/ai/gemini-client.ts`가 Anthropic 클라이언트의
+  `messages.stream(...).finalMessage()` 표면을 어댑터로 구현 — extract/match 로직 무수정.
+  모델 ID는 `lib/ai/provider.ts`에서 provider별로 결정되어 DB `model_id`·캐시 판정에 반영된다
+  (provider 전환 시 기존 구조화 캐시는 model_mismatch로 자동 재분석).
+- **모델**: `gemini-3.5-flash` (무료 티어. `gemini-2.5-flash`는 신규 사용자 제공 종료 확인).
+- **429 처리**: provider 한도 초과는 `quota_exceeded`로 매핑된다
+  (`toJobErrorCode` — Anthropic/Gemini 공통 `status: 429` 판정, 라우트 429 응답, S6 재시도 안내).
+
+### 4절 검증 항목 진행 현황
+
+| 항목                                   | 상태                                                                              |
+| -------------------------------------- | --------------------------------------------------------------------------------- |
+| extraction cache miss → hit (LLM #1)   | ✅ 실측 완료 — `extract:posting` 3.5s 성공(miss), 재실행 0.4s cache_hit            |
+| match(LLM #2) 판정·score 산출          | ✅ 실측 완료 — 직접 호출 20.8s, 판정 3건 타당(2.5년 vs 요구 3년 → partial), score 70 |
+| match·score DB 저장·jobs 전이          | 대기 — 임시 사용자·스냅샷 준비 필요 (체크리스트 C~D)                               |
+| `POST /api/analyses` 완주·Realtime·S6  | 대기 — 로그인 세션 필요 (M2 로그인 화면 이후)                                      |
+| 실 사이트(원티드·사람인) 수집          | 대기 — 실 URL 필요                                                                 |
+
 ---
 
-_M2 착수 조건: 없음 — 실 API 검증은 M2와 병렬 진행 가능하다 (크레딧 충전 시점에 B부터)._
+_M2 착수 조건: 없음 — 남은 실 검증(세션 필요 항목)은 M2 로그인 구현과 병렬 진행한다._
