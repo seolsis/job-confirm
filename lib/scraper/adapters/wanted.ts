@@ -4,9 +4,11 @@ import type { ExtractedContent, SiteAdapter } from "../types";
 /**
  * 원티드(wanted.co.kr) 어댑터 — MVP 우선 어댑터 (PRD 5.2, Q5).
  *
- * 원티드 공고 페이지는 SSR HTML에 JSON-LD(JobPosting)를 포함하므로
- * 이를 1순위로 파싱한다. JSON-LD가 없으면(마크업 변경 등) null을 반환하고
- * 오케스트레이터가 범용 추출기로 폴백한다.
+ * 1순위: __NEXT_DATA__(Next.js SSR 데이터)의 initialData — 자격요건·우대사항·
+ * 혜택·경력 연차까지 담긴 완전한 구조화 JD다.
+ * 2순위(폴백): JSON-LD(JobPosting) — description이 주요 업무 요약만 담고 있어
+ * 자격요건이 누락된다 (M2-4 실측: 요건 0건 → 100점 오판의 원인).
+ * 둘 다 실패하면 null을 반환하고 오케스트레이터가 범용 추출기로 폴백한다.
  */
 
 /** JSON-LD 트리에서 @type: JobPosting 노드를 찾는다 */
@@ -36,6 +38,67 @@ function htmlToPlainText(html: string): string {
   return elementToText($, $("#__root"));
 }
 
+/** __NEXT_DATA__.props.pageProps.initialData — 원티드 공고 상세의 SSR 데이터 */
+interface WantedInitialData {
+  position: string;
+  company: { company_name: string | null };
+  address: { full_location: string | null; location: string | null } | null;
+  career: { annual_from: number | null; annual_to: number | null; is_newbie: boolean } | null;
+  close_time: string | null;
+  due_time: string | null;
+  intro: string | null;
+  main_tasks: string | null;
+  requirements: string | null;
+  preferred_points: string | null;
+  benefits: string | null;
+}
+
+/** initialData 후보를 방어적으로 검증한다 — 필수는 position + 본문 섹션 1개 이상 */
+function asInitialData(value: unknown): WantedInitialData | null {
+  if (value === null || typeof value !== "object") return null;
+  const data = value as Record<string, unknown>;
+  if (asString(data["position"]) === null) return null;
+  const hasBody = ["intro", "main_tasks", "requirements"].some(
+    (key) => asString(data[key]) !== null
+  );
+  return hasBody ? (data as unknown as WantedInitialData) : null;
+}
+
+/** initialData → 라벨 있는 본문 텍스트 (필드 해석·판정은 LLM 구조화 단계의 몫) */
+function buildBodyFromInitialData(data: WantedInitialData): string {
+  const lines: string[] = [`공고 제목: ${data.position}`];
+
+  const companyName = asString(data.company?.company_name);
+  if (companyName) lines.push(`회사: ${companyName}`);
+
+  const career = data.career;
+  if (career && (career.annual_from !== null || career.annual_to !== null)) {
+    const from = career.annual_from !== null ? `${career.annual_from}년` : "";
+    const to = career.annual_to !== null ? `${career.annual_to}년` : "";
+    lines.push(`경력: ${from}${from || to ? " ~ " : ""}${to}${career.is_newbie ? " (신입 가능)" : ""}`);
+  }
+
+  const location = asString(data.address?.full_location) ?? asString(data.address?.location);
+  if (location) lines.push(`근무지: ${location}`);
+
+  const deadline = asString(data.close_time) ?? asString(data.due_time);
+  if (deadline) lines.push(`마감: ${deadline}`);
+
+  const sections: Array<[string, string | null | undefined]> = [
+    ["소개", data.intro],
+    ["주요업무", data.main_tasks],
+    ["자격요건", data.requirements],
+    ["우대사항", data.preferred_points],
+    ["혜택 및 복지", data.benefits],
+  ];
+  for (const [label, text] of sections) {
+    const value = asString(text);
+    if (value) lines.push("", `[${label}]`, value);
+  }
+
+  return lines.join("\n");
+}
+
 export const wantedAdapter: SiteAdapter = {
   sourceSite: "wanted",
 
@@ -46,6 +109,25 @@ export const wantedAdapter: SiteAdapter = {
   extract(html: string): ExtractedContent | null {
     const $ = loadHtml(html);
 
+    // 1순위 — __NEXT_DATA__의 initialData (완전한 구조화 JD)
+    try {
+      const nextData = JSON.parse($("script#__NEXT_DATA__").text()) as {
+        props?: { pageProps?: { initialData?: unknown } };
+      };
+      const data = asInitialData(nextData.props?.pageProps?.initialData);
+      if (data) {
+        const meta = extractPageMeta($);
+        return {
+          title: data.position,
+          siteName: meta.siteName ?? "원티드",
+          bodyText: buildBodyFromInitialData(data),
+        };
+      }
+    } catch {
+      // __NEXT_DATA__가 없거나 구조가 바뀜 — JSON-LD 폴백으로 진행
+    }
+
+    // 2순위(폴백) — JSON-LD JobPosting (description이 요약본이라 자격요건이 빠질 수 있다)
     let jobPosting: Record<string, unknown> | null = null;
     for (const el of $('script[type="application/ld+json"]').toArray()) {
       try {
