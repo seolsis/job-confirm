@@ -1,21 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
+import { GoogleSignInButton } from "../google-signin-button";
+
 /**
- * S2 — 로그인 (PRD 3.1). 강아지(🐶)가 마중 나오는 문. MVP는 이메일 로그인부터.
+ * S2 — 로그인 (PRD 3.1). 강아지(🐶)가 마중 나오는 문.
+ * 이메일 + Google OAuth (M2-6 — 콜백은 /auth/callback).
  *
  * 성공 시 전체 내비게이션(location.assign)으로 이동한다 — @supabase/ssr이 심은
  * 세션 쿠키를 서버(proxy·Route Handler)가 확실히 읽게 하기 위함.
  * 미인증으로 보호 경로에 접근하면 proxy가 ?next=<경로>를 붙여 여기로 보낸다.
  */
+
+/** useSearchParams는 정적 페이지에서 Suspense 경계가 필요하다 (Next 규칙) */
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // OAuth 콜백 실패(/login?error=oauth) 안내로 시작할 수 있다
+  const [error, setError] = useState<string | null>(
+    searchParams.get("error") === "oauth"
+      ? "Google 로그인에 실패했어… 다시 시도하거나 이메일로 로그인해 줘."
+      : null
+  );
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -55,7 +75,17 @@ export default function LoginPage() {
       <div className="mt-6 w-full max-w-sm rounded-[2rem] border-2 border-amber-100 bg-white p-8 shadow-[0_4px_0_#fde68a]">
         <h1 className="text-center text-2xl text-stone-700">다시 떠나기</h1>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <div className="mt-6">
+          <GoogleSignInButton />
+        </div>
+
+        <div className="mt-5 flex items-center gap-3 text-xs text-stone-300" aria-hidden>
+          <span className="h-px flex-1 bg-amber-100" />
+          또는 이메일로
+          <span className="h-px flex-1 bg-amber-100" />
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <label className="block text-sm text-stone-600">
             이메일
             <input

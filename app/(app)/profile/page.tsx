@@ -361,7 +361,9 @@ export default function ProfilePage() {
             <ListRows
               items={educations}
               addLabel="+ 학력 추가"
-              onAdd={() => setEducations((rows) => [...rows, { school: "", major: "", status: "" }])}
+              onAdd={() =>
+                setEducations((rows) => [...rows, { school: "", major: "", status: "" }])
+              }
               onRemove={(i) => setEducations((rows) => rows.filter((_, index) => index !== i))}
               renderItem={(row, i) => (
                 <div className="grid grid-cols-3 gap-2">
@@ -369,21 +371,27 @@ export default function ProfilePage() {
                     type="text"
                     placeholder="학교명"
                     value={row.school}
-                    onChange={(e) => setEducations((rows) => patch(rows, i, { school: e.target.value }))}
+                    onChange={(e) =>
+                      setEducations((rows) => patch(rows, i, { school: e.target.value }))
+                    }
                     className={inputClass}
                   />
                   <input
                     type="text"
                     placeholder="전공"
                     value={row.major}
-                    onChange={(e) => setEducations((rows) => patch(rows, i, { major: e.target.value }))}
+                    onChange={(e) =>
+                      setEducations((rows) => patch(rows, i, { major: e.target.value }))
+                    }
                     className={inputClass}
                   />
                   <input
                     type="text"
                     placeholder="상태 (재학/졸업)"
                     value={row.status}
-                    onChange={(e) => setEducations((rows) => patch(rows, i, { status: e.target.value }))}
+                    onChange={(e) =>
+                      setEducations((rows) => patch(rows, i, { status: e.target.value }))
+                    }
                     className={inputClass}
                   />
                 </div>
@@ -524,7 +532,9 @@ export default function ProfilePage() {
                     type="text"
                     placeholder="시험명 (예: TOEIC)"
                     value={row.test}
-                    onChange={(e) => setLanguages((rows) => patch(rows, i, { test: e.target.value }))}
+                    onChange={(e) =>
+                      setLanguages((rows) => patch(rows, i, { test: e.target.value }))
+                    }
                     className={inputClass}
                   />
                   <input
@@ -557,14 +567,18 @@ export default function ProfilePage() {
                       type="text"
                       placeholder="프로젝트명"
                       value={row.name}
-                      onChange={(e) => setProjects((rows) => patch(rows, i, { name: e.target.value }))}
+                      onChange={(e) =>
+                        setProjects((rows) => patch(rows, i, { name: e.target.value }))
+                      }
                       className={inputClass}
                     />
                     <input
                       type="text"
                       placeholder="맡은 역할 (선택)"
                       value={row.role}
-                      onChange={(e) => setProjects((rows) => patch(rows, i, { role: e.target.value }))}
+                      onChange={(e) =>
+                        setProjects((rows) => patch(rows, i, { role: e.target.value }))
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -581,7 +595,9 @@ export default function ProfilePage() {
                     type="text"
                     placeholder="사용 기술 — 콤마로 구분 (예: Python, Django, AWS)"
                     value={row.tech}
-                    onChange={(e) => setProjects((rows) => patch(rows, i, { tech: e.target.value }))}
+                    onChange={(e) =>
+                      setProjects((rows) => patch(rows, i, { tech: e.target.value }))
+                    }
                     className={inputClass}
                   />
                 </div>

@@ -5,8 +5,11 @@ import { useState, type FormEvent } from "react";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
+import { GoogleSignInButton } from "../google-signin-button";
+
 /**
- * S2 — 회원가입 (PRD 3.1). 새 친구를 맞이하는 문. 이메일 + 비밀번호.
+ * S2 — 회원가입 (PRD 3.1). 새 친구를 맞이하는 문.
+ * 이메일 + Google OAuth (M2-6 — Google 가입은 /auth/callback에서 온보딩으로 이어진다).
  *
  * 가입 성공 시 DB 트리거("jobConfirm_on_auth_user_created")가
  * jobConfirm_profiles 행을 자동 생성한다 (마이그레이션 4.1절).
@@ -86,7 +89,17 @@ export default function SignupPage() {
       <div className="mt-6 w-full max-w-sm rounded-[2rem] border-2 border-amber-100 bg-white p-8 shadow-[0_4px_0_#fde68a]">
         <h1 className="text-center text-2xl text-stone-700">여행 시작하기</h1>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <div className="mt-6">
+          <GoogleSignInButton />
+        </div>
+
+        <div className="mt-5 flex items-center gap-3 text-xs text-stone-300" aria-hidden>
+          <span className="h-px flex-1 bg-amber-100" />
+          또는 이메일로
+          <span className="h-px flex-1 bg-amber-100" />
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <label className="block text-sm text-stone-600">
             이메일
             <input
