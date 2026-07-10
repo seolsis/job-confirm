@@ -80,10 +80,13 @@ Anthropic 크레딧 차단을 우회하기 위해 Gemini provider를 추가했�
 | match(LLM #2) 판정·score 산출          | ✅ 실측 완료 — 직접 호출 20.8s, 판정 3건 타당(2.5년 vs 요구 3년 → partial), score 70 |
 | match·score DB 저장·jobs 전이          | ✅ 실측 완료 — M2-3 E2E: queued→…→done 전이·match_analyses 저장 (테스트 계정)      |
 | `POST /api/analyses` 완주·Realtime·S6  | ✅ 실측 완료 — M2-3 E2E: 로그인→온보딩→분석 완주(~30s), Realtime 수신, S6 렌더     |
-| 실 사이트(원티드·사람인) 수집          | 대기 — 실 URL 필요                                                                 |
+| 실 사이트(원티드) 수집·URL 캐시        | ✅ 실측 완료 — M2-4: 실 공고 URL 완주 + 동일 URL 재분석 시 구조화 캐시 히트 확인    |
+| 실 사이트(사람인) 수집                 | 대기 — 실 URL 필요 (원티드 검증으로 어댑터 경로 자체는 입증)                        |
 
 M2-3 E2E에서 발견·수정된 이슈 2건: 온보딩 스킬 연차 input의 소수 차단(`step` 미지정),
 S6 진행 화면의 Realtime 조인 전 전이 유실 레이스 — 해당 커밋 메시지 참고.
+M2-4에서 발견·수정된 이슈 1건: 원티드 JSON-LD description이 요약본이라 자격요건이
+누락됨(요건 0건 → 100점 오판) — 어댑터가 __NEXT_DATA__를 1순위로 파싱하도록 수정.
 
 ---
 
