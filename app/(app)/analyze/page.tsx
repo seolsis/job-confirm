@@ -76,10 +76,10 @@ function AnalyzeInputForm() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-sky-100 via-[#fef6e4] to-[#fef6e4] px-4 py-16">
-      {/* 상단 내비 — 프로필 설정 진입점 (상시 노출) */}
+      {/* 상단 내비 — 프로필 관리(S9) 진입점 (상시 노출) */}
       <nav className="fixed top-4 right-4 z-10">
         <Link
-          href="/profile/onboarding"
+          href="/profile"
           className="flex items-center gap-1.5 rounded-full border-2 border-amber-100 bg-white/90 px-4 py-2 text-sm text-stone-600 shadow-sm transition-transform hover:-translate-y-0.5"
         >
           <span aria-hidden>🐥</span> 내 프로필
