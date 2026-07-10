@@ -6,13 +6,13 @@ import { useState, type FormEvent } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 /**
- * S2 — 회원가입 (M2-1, PRD 3.1). 이메일 + 비밀번호.
+ * S2 — 회원가입 (PRD 3.1). 새 친구를 맞이하는 문. 이메일 + 비밀번호.
  *
  * 가입 성공 시 DB 트리거("jobConfirm_on_auth_user_created")가
  * jobConfirm_profiles 행을 자동 생성한다 (마이그레이션 4.1절).
  *
  * Supabase 프로젝트의 이메일 확인(Confirm email) 설정에 따라 두 경로로 갈린다:
- *  - 확인 꺼짐: 즉시 세션 발급 → 홈으로 이동
+ *  - 확인 꺼짐: 즉시 세션 발급 → 프로필 온보딩으로 이동
  *  - 확인 켜짐: 세션 없음 → 확인 메일 안내 표시
  */
 export default function SignupPage() {
@@ -32,7 +32,7 @@ export default function SignupPage() {
 
     if (signUpError) {
       setSubmitting(false);
-      setError(`회원가입에 실패했습니다: ${signUpError.message}`);
+      setError(`가입에 실패했어: ${signUpError.message}`);
       return;
     }
 
@@ -49,12 +49,20 @@ export default function SignupPage() {
 
   if (needsEmailConfirm) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-violet-50 px-4 py-12">
-        <div className="w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/60">
-          <h1 className="text-2xl font-bold text-slate-800">확인 메일을 보냈습니다</h1>
-          <p className="mt-4 text-sm text-slate-600">
-            {email} 로 보낸 메일의 링크를 누르면 가입이 완료됩니다. 완료 후{" "}
-            <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-700">
+      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-sky-100 via-[#fef6e4] to-[#fef6e4] px-4 py-12">
+        <div className="text-center">
+          <span className="inline-block animate-float text-6xl" aria-hidden>
+            📮🐶
+          </span>
+          <div className="bubble bubble-center mx-auto mt-4 max-w-xs text-sm text-stone-600">
+            편지를 보냈어! 메일함을 확인해 줘.
+          </div>
+        </div>
+        <div className="mt-6 w-full max-w-sm rounded-[2rem] border-2 border-amber-100 bg-white p-8 text-center shadow-[0_4px_0_#fde68a]">
+          <h1 className="text-xl text-stone-700">확인 메일을 보냈어요</h1>
+          <p className="mt-3 text-sm leading-relaxed text-stone-500">
+            {email} 로 보낸 메일의 링크를 누르면 가입이 완료돼요. 완료 후{" "}
+            <Link href="/login" className="text-amber-600 underline">
               로그인
             </Link>
             해 주세요.
@@ -65,12 +73,21 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-violet-50 px-4 py-12">
-      <div className="w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/60">
-        <h1 className="text-2xl font-bold text-slate-800">회원가입</h1>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-sky-100 via-[#fef6e4] to-[#fef6e4] px-4 py-12">
+      <div className="text-center">
+        <span className="inline-block animate-hop text-6xl" aria-hidden>
+          🐶
+        </span>
+        <div className="bubble bubble-center mx-auto mt-4 max-w-xs text-sm text-stone-600">
+          처음 왔구나! 반가워. 같이 여행할 준비를 해보자!
+        </div>
+      </div>
+
+      <div className="mt-6 w-full max-w-sm rounded-[2rem] border-2 border-amber-100 bg-white p-8 shadow-[0_4px_0_#fde68a]">
+        <h1 className="text-center text-2xl text-stone-700">여행 시작하기</h1>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm text-stone-600">
             이메일
             <input
               type="email"
@@ -78,10 +95,10 @@ export default function SignupPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition-colors focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+              className="mt-1.5 w-full rounded-2xl border-2 border-amber-100 bg-white px-4 py-2.5 text-sm text-stone-700 outline-none placeholder:text-stone-300 focus:border-amber-300"
             />
           </label>
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm text-stone-600">
             비밀번호 (6자 이상)
             <input
               type="password"
@@ -90,26 +107,28 @@ export default function SignupPage() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition-colors focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+              className="mt-1.5 w-full rounded-2xl border-2 border-amber-100 bg-white px-4 py-2.5 text-sm text-stone-700 outline-none placeholder:text-stone-300 focus:border-amber-300"
             />
           </label>
 
           {error !== null && (
-            <p className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-rose-600">{error}</p>
+            <p className="rounded-2xl border-2 border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+              🥺 {error}
+            </p>
           )}
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-xl bg-indigo-200 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm shadow-indigo-100 transition-colors hover:bg-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-full bg-amber-300 py-3 text-sm text-amber-950 shadow-[0_4px_0_#f59e0b] transition-transform hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
           >
-            {submitting ? "가입 중…" : "회원가입"}
+            {submitting ? "가방 싸는 중… 🧳" : "가입하고 떠나기"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
-          이미 계정이 있으신가요?{" "}
-          <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-700">
+        <p className="mt-6 text-center text-sm text-stone-500">
+          이미 친구라면{" "}
+          <Link href="/login" className="text-amber-600 underline">
             로그인
           </Link>
         </p>

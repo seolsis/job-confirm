@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 /**
- * S2 — 로그인 (M2-1, PRD 3.1). MVP는 이메일 로그인부터, Google OAuth는 M2 후반.
+ * S2 — 로그인 (PRD 3.1). 강아지(🐶)가 마중 나오는 문. MVP는 이메일 로그인부터.
  *
  * 성공 시 전체 내비게이션(location.assign)으로 이동한다 — @supabase/ssr이 심은
  * 세션 쿠키를 서버(proxy·Route Handler)가 확실히 읽게 하기 위함.
@@ -30,8 +30,8 @@ export default function LoginPage() {
       setSubmitting(false);
       setError(
         signInError.message === "Invalid login credentials"
-          ? "이메일 또는 비밀번호가 올바르지 않습니다."
-          : `로그인에 실패했습니다: ${signInError.message}`
+          ? "이메일 또는 비밀번호가 맞지 않아…"
+          : `로그인에 실패했어: ${signInError.message}`
       );
       return;
     }
@@ -42,12 +42,21 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-violet-50 px-4 py-12">
-      <div className="w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/60">
-        <h1 className="text-2xl font-bold text-slate-800">로그인</h1>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-sky-100 via-[#fef6e4] to-[#fef6e4] px-4 py-12">
+      <div className="text-center">
+        <span className="inline-block animate-wiggle text-6xl" aria-hidden>
+          🐶
+        </span>
+        <div className="bubble bubble-center mx-auto mt-4 max-w-xs text-sm text-stone-600">
+          어서 와! 기다리고 있었어. 다시 만나서 반가워!
+        </div>
+      </div>
+
+      <div className="mt-6 w-full max-w-sm rounded-[2rem] border-2 border-amber-100 bg-white p-8 shadow-[0_4px_0_#fde68a]">
+        <h1 className="text-center text-2xl text-stone-700">다시 떠나기</h1>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm text-stone-600">
             이메일
             <input
               type="email"
@@ -55,10 +64,10 @@ export default function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition-colors focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+              className="mt-1.5 w-full rounded-2xl border-2 border-amber-100 bg-white px-4 py-2.5 text-sm text-stone-700 outline-none placeholder:text-stone-300 focus:border-amber-300"
             />
           </label>
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm text-stone-600">
             비밀번호
             <input
               type="password"
@@ -66,27 +75,29 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition-colors focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+              className="mt-1.5 w-full rounded-2xl border-2 border-amber-100 bg-white px-4 py-2.5 text-sm text-stone-700 outline-none placeholder:text-stone-300 focus:border-amber-300"
             />
           </label>
 
           {error !== null && (
-            <p className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-rose-600">{error}</p>
+            <p className="rounded-2xl border-2 border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+              🥺 {error}
+            </p>
           )}
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-xl bg-indigo-200 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm shadow-indigo-100 transition-colors hover:bg-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-full bg-amber-300 py-3 text-sm text-amber-950 shadow-[0_4px_0_#f59e0b] transition-transform hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
           >
-            {submitting ? "로그인 중…" : "로그인"}
+            {submitting ? "문 여는 중… 🔑" : "로그인"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
-          계정이 없으신가요?{" "}
-          <Link href="/signup" className="font-medium text-indigo-600 hover:text-indigo-700">
-            회원가입
+        <p className="mt-6 text-center text-sm text-stone-500">
+          아직 친구가 아니라면{" "}
+          <Link href="/signup" className="text-amber-600 underline">
+            여행 시작하기
           </Link>
         </p>
       </div>

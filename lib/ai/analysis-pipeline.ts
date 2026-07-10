@@ -258,7 +258,11 @@ export function toJobErrorCode(cause: unknown): JobErrorCode {
  */
 function isRateLimitError(error: unknown, maxDepth = 4): boolean {
   let current: unknown = error;
-  for (let depth = 0; depth < maxDepth && current !== null && typeof current === "object"; depth++) {
+  for (
+    let depth = 0;
+    depth < maxDepth && current !== null && typeof current === "object";
+    depth++
+  ) {
     if ((current as { status?: unknown }).status === 429) return true;
     current = (current as { cause?: unknown }).cause;
   }

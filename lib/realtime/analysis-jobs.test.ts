@@ -125,7 +125,12 @@ describe("subscribeToAnalysisJob", () => {
   it("조인 완료(SUBSCRIBED) 시 onSubscribed를 호출한다 — 호출부 재조회로 조인 전 갭을 메운다", () => {
     const { client, channels } = makeFakeSupabase();
     let subscribedCount = 0;
-    subscribeToAnalysisJob(client, "job-1", () => {}, () => (subscribedCount += 1));
+    subscribeToAnalysisJob(
+      client,
+      "job-1",
+      () => {},
+      () => (subscribedCount += 1)
+    );
 
     expect(subscribedCount).toBe(0); // 조인 완료 전에는 호출되지 않는다
     channels[0].statusCallback?.("SUBSCRIBED");

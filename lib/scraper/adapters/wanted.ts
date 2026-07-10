@@ -75,7 +75,9 @@ function buildBodyFromInitialData(data: WantedInitialData): string {
   if (career && (career.annual_from !== null || career.annual_to !== null)) {
     const from = career.annual_from !== null ? `${career.annual_from}년` : "";
     const to = career.annual_to !== null ? `${career.annual_to}년` : "";
-    lines.push(`경력: ${from}${from || to ? " ~ " : ""}${to}${career.is_newbie ? " (신입 가능)" : ""}`);
+    lines.push(
+      `경력: ${from}${from || to ? " ~ " : ""}${to}${career.is_newbie ? " (신입 가능)" : ""}`
+    );
   }
 
   const location = asString(data.address?.full_location) ?? asString(data.address?.location);

@@ -1,27 +1,190 @@
 @import "tailwindcss";
 
+/**
+ * "취업 준비를 함께하는 동물 친구들의 모험" 디자인 시스템.
+ * Animal Crossing / Kirby / LINE Friends 감성 — 크림빛 세계, 둥근 모양, 통통 튀는 움직임.
+ *
+ * 성능 원칙 (60fps):
+ *  - 모든 애니메이션은 transform / opacity 만 사용한다 (레이아웃·페인트 유발 금지)
+ *  - 스크롤 연동은 rAF 1개 + CSS 변수(--sp) → transform 계산 (컴포지터에서 처리)
+ *  - prefers-reduced-motion 이면 장식 애니메이션을 전부 끈다
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fef6e4; /* 따뜻한 크림 — 세계의 기본 하늘색 아래 땅 */
+  --foreground: #57534e; /* stone-600 — 부드러운 잉크 */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-jua);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  /* Geist Sans(layout.tsx에서 로드)를 실제로 적용 — 기존 Arial 하드코딩이 덮어쓰고 있었다 */
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Jua(둥근 한글) — layout.tsx에서 로드. 세계관 전체에 적용 */
+  font-family: var(--font-jua), "Apple SD Gothic Neo", "Malgun Gothic", ui-rounded, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+/* ── 캐릭터 모션 (전부 transform 전용 — 컴포지터 스레드에서 60fps) ─────────── */
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes hop {
+  0%,
+  55%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  25% {
+    transform: translateY(-32%) scaleY(1.05);
+  }
+  50% {
+    transform: translateY(0) scaleY(0.94);
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+/* 걷기 흔들림 — 스크롤 이동(translateX)과 합성되도록 자식 요소에 건다 */
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(-8vw);
+  }
+  to {
+    transform: translateX(108vw);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-float {
+  animation: float 3.2s ease-in-out infinite;
+}
+.animate-hop {
+  animation: hop 1s ease-in-out infinite;
+}
+.animate-wiggle {
+  animation: wiggle 1.6s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+.animate-bob {
+  animation: bob 0.9s ease-in-out infinite;
+}
+.animate-pop-in {
+  animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── 말풍선 — 동물 친구의 대사 ─────────────────────────────────────────────── */
+
+.bubble {
+  position: relative;
+  background: #fff;
+  border: 2px solid #f0e2c8;
+  border-radius: 1.25rem;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 3px 0 rgba(240, 226, 200, 0.6);
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -9px;
+  left: 1.5rem;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-bottom: 2px solid #f0e2c8;
+  border-right: 2px solid #f0e2c8;
+  transform: rotate(45deg);
+  border-bottom-right-radius: 4px;
+}
+.bubble-left::after {
+  left: 1.5rem;
+}
+.bubble-center::after {
+  left: 50%;
+  margin-left: -7px;
+}
+
+/* ── 스크롤 등장 (IntersectionObserver가 .on 을 붙인다) ─────────────────────── */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.on {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── 스크롤 여행 (랜딩) — rAF가 갱신하는 --sp(0~1)로 이동 ───────────────────── */
+
+.sky-walker {
+  transform: translate3d(calc(var(--sp, 0) * 72vw), 0, 0);
+  will-change: transform;
+}
+
+/* ── 움직임 최소화 설정 존중 — 장식 모션 전부 정지 ──────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-hop,
+  .animate-wiggle,
+  .animate-bob,
+  .animate-pop-in,
+  [class*="animate-"] {
+    animation: none !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .sky-walker {
+    transform: none;
+  }
 }
