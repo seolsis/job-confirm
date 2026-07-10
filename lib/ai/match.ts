@@ -8,6 +8,7 @@ import {
   MATCH_SYSTEM_PROMPT,
 } from "./prompts/match-v1";
 import { MATCH_JSON_SCHEMA, MATCH_SCHEMA_VERSION, type MatchResult } from "./match-schemas";
+import { getAiProvider, MATCH_MODEL_IDS } from "./provider";
 import type { PostingExtraction } from "./schemas";
 
 /**
@@ -22,8 +23,8 @@ import type { PostingExtraction } from "./schemas";
  * extract.ts와 대칭 구조 — 호출 파라미터만 다르다 (6.1 표).
  */
 
-/** 기본 모델 (6.1). DB의 model_id로 그대로 저장된다 */
-export const MATCH_MODEL_ID = "claude-opus-4-8";
+/** 기본 모델 (6.1). DB의 model_id로 그대로 저장된다. AI_PROVIDER에 따라 결정된다 */
+export const MATCH_MODEL_ID = MATCH_MODEL_IDS[getAiProvider()];
 
 /** 호출 파라미터 (6.1 표): 판단 품질이 제품 핵심이라 effort high, 출력이 길어 16k */
 const MATCH_MAX_TOKENS = 16_000;

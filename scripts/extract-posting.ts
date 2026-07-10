@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
-import { createAnthropicClient } from "@/lib/ai/client";
+import { createAiClient } from "@/lib/ai/client";
 import { extractAndStorePosting, ExtractPostingError } from "@/lib/ai/extraction-service";
 import { insertJobPosting } from "@/lib/db/postings";
 import { manualPastePosting } from "@/lib/scraper";
@@ -39,7 +39,7 @@ async function main(): Promise<void> {
   }
 
   const supabase = createServiceRoleSupabaseClient();
-  const anthropic = createAnthropicClient();
+  const anthropic = createAiClient();
 
   // --file: 붙여넣기 폴백과 동일 경로(manual_paste)로 공고 행을 먼저 만든다
   let postingId = values["posting-id"];

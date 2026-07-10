@@ -5,6 +5,7 @@ import {
   EXTRACT_PROMPT_VERSION,
   EXTRACT_SYSTEM_PROMPT,
 } from "./prompts/extract-v1";
+import { EXTRACTION_MODEL_IDS, getAiProvider } from "./provider";
 import {
   EXTRACTION_JSON_SCHEMA,
   EXTRACTION_SCHEMA_VERSION,
@@ -22,8 +23,9 @@ import {
  * Anthropic 클라이언트는 주입받으므로 fake 클라이언트로 단위 테스트할 수 있다.
  */
 
-/** 기본 모델 (docs/AI_ANALYSIS_DESIGN.md 전제). DB의 model_id로 그대로 저장된다 */
-export const EXTRACTION_MODEL_ID = "claude-opus-4-8";
+/** 기본 모델 (docs/AI_ANALYSIS_DESIGN.md 전제). DB의 model_id로 그대로 저장된다.
+ * AI_PROVIDER에 따라 결정된다 — 캐시 판정(extraction-cache.ts)도 같은 상수를 쓴다 */
+export const EXTRACTION_MODEL_ID = EXTRACTION_MODEL_IDS[getAiProvider()];
 
 /** 호출 파라미터 (6.1 표): 추출은 정형 작업이라 effort medium */
 const EXTRACTION_MAX_TOKENS = 8_000;

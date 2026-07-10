@@ -5,7 +5,7 @@ import {
   AnalysisRequestError,
   runAnalysisPipeline,
 } from "@/lib/ai/analysis-pipeline";
-import { createAnthropicClient } from "@/lib/ai/client";
+import { createAiClient } from "@/lib/ai/client";
 import type { JobErrorCode } from "@/lib/db/analysis-jobs";
 import { getOrCreateProfileSnapshot } from "@/lib/db/profile-snapshots";
 import { getProfileByUserId, toProfileSnapshot } from "@/lib/db/profiles";
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // 4. 파이프라인 실행 — 잡 생성부터 done/failed 마감까지 내부에서 처리된다
   try {
     const result = await runAnalysisPipeline(
-      { anthropic: createAnthropicClient(), supabase: createServiceRoleSupabaseClient() },
+      { anthropic: createAiClient(), supabase: createServiceRoleSupabaseClient() },
       {
         userId: user.id,
         profileSnapshotId: snapshot.id,
