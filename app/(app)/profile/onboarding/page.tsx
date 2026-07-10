@@ -33,7 +33,8 @@ interface EducationInput {
   status: string;
 }
 
-const inputClass = "mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm";
+const inputClass =
+  "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition-colors placeholder:text-slate-300 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100";
 
 export default function OnboardingPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
@@ -145,114 +146,163 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-xl px-4 py-10">
-        <p className="text-sm text-gray-500">프로필을 불러오는 중…</p>
+      <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-violet-50 px-4 py-10">
+        <p className="mx-auto max-w-xl text-sm text-slate-500">프로필을 불러오는 중…</p>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-10">
-      <h1 className="text-xl font-bold">프로필 입력</h1>
-      <p className="mt-2 text-sm text-gray-600">
-        희망 직무만 입력해도 분석을 시작할 수 있어요. 더 채울수록 분석이 정확해집니다.
-      </p>
+    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-violet-50 px-4 py-10">
+      <div className="mx-auto max-w-xl rounded-3xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/60">
+        <h1 className="text-2xl font-bold text-slate-800">프로필 입력</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          희망 직무만 입력해도 분석을 시작할 수 있어요. 더 채울수록 분석이 정확해집니다.
+        </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-8">
-        {/* ① 희망 직무 (필수 — PRD 2.1 최소 입력) */}
-        <section>
-          <label className="block text-sm font-semibold">
-            희망 직무 *
-            <input
-              type="text"
-              required
-              placeholder="예: 백엔드 개발자"
-              value={desiredJob}
-              onChange={(e) => setDesiredJob(e.target.value)}
-              className={inputClass}
-            />
-          </label>
-        </section>
-
-        {/* ② 학력 (선택) */}
-        <ListSection
-          title="학력"
-          addLabel="+ 학력 추가"
-          items={educations}
-          onAdd={() => setEducations((rows) => [...rows, { school: "", major: "", status: "" }])}
-          onRemove={(index) => setEducations((rows) => rows.filter((_, i) => i !== index))}
-          renderItem={(row, index) => (
-            <div className="grid grid-cols-3 gap-2">
+        <form onSubmit={handleSubmit} className="mt-8 space-y-8">
+          {/* ① 희망 직무 (필수 — PRD 2.1 최소 입력) */}
+          <section>
+            <label className="block text-sm font-semibold text-slate-700">
+              희망 직무 *
               <input
                 type="text"
-                placeholder="학교명"
-                value={row.school}
-                onChange={(e) =>
-                  setEducations((rows) =>
-                    rows.map((r, i) => (i === index ? { ...r, school: e.target.value } : r))
-                  )
-                }
+                required
+                placeholder="예: 백엔드 개발자"
+                value={desiredJob}
+                onChange={(e) => setDesiredJob(e.target.value)}
                 className={inputClass}
               />
-              <input
-                type="text"
-                placeholder="전공"
-                value={row.major}
-                onChange={(e) =>
-                  setEducations((rows) =>
-                    rows.map((r, i) => (i === index ? { ...r, major: e.target.value } : r))
-                  )
-                }
-                className={inputClass}
-              />
-              <input
-                type="text"
-                placeholder="상태 (재학/졸업)"
-                value={row.status}
-                onChange={(e) =>
-                  setEducations((rows) =>
-                    rows.map((r, i) => (i === index ? { ...r, status: e.target.value } : r))
-                  )
-                }
-                className={inputClass}
-              />
-            </div>
-          )}
-        />
+            </label>
+          </section>
 
-        {/* ② 경력 (선택) */}
-        <ListSection
-          title="경력"
-          addLabel="+ 경력 추가"
-          items={experiences}
-          onAdd={() =>
-            setExperiences((rows) => [
-              ...rows,
-              { company: "", role: "", months: "", description: "" },
-            ])
-          }
-          onRemove={(index) => setExperiences((rows) => rows.filter((_, i) => i !== index))}
-          renderItem={(row, index) => (
-            <div className="space-y-2">
+          {/* ② 학력 (선택) */}
+          <ListSection
+            title="학력"
+            addLabel="+ 학력 추가"
+            items={educations}
+            onAdd={() => setEducations((rows) => [...rows, { school: "", major: "", status: "" }])}
+            onRemove={(index) => setEducations((rows) => rows.filter((_, i) => i !== index))}
+            renderItem={(row, index) => (
               <div className="grid grid-cols-3 gap-2">
                 <input
                   type="text"
-                  placeholder="회사명"
-                  value={row.company}
+                  placeholder="학교명"
+                  value={row.school}
                   onChange={(e) =>
-                    setExperiences((rows) =>
-                      rows.map((r, i) => (i === index ? { ...r, company: e.target.value } : r))
+                    setEducations((rows) =>
+                      rows.map((r, i) => (i === index ? { ...r, school: e.target.value } : r))
                     )
                   }
                   className={inputClass}
                 />
                 <input
                   type="text"
-                  placeholder="역할 (예: 백엔드)"
-                  value={row.role}
+                  placeholder="전공"
+                  value={row.major}
+                  onChange={(e) =>
+                    setEducations((rows) =>
+                      rows.map((r, i) => (i === index ? { ...r, major: e.target.value } : r))
+                    )
+                  }
+                  className={inputClass}
+                />
+                <input
+                  type="text"
+                  placeholder="상태 (재학/졸업)"
+                  value={row.status}
+                  onChange={(e) =>
+                    setEducations((rows) =>
+                      rows.map((r, i) => (i === index ? { ...r, status: e.target.value } : r))
+                    )
+                  }
+                  className={inputClass}
+                />
+              </div>
+            )}
+          />
+
+          {/* ② 경력 (선택) */}
+          <ListSection
+            title="경력"
+            addLabel="+ 경력 추가"
+            items={experiences}
+            onAdd={() =>
+              setExperiences((rows) => [
+                ...rows,
+                { company: "", role: "", months: "", description: "" },
+              ])
+            }
+            onRemove={(index) => setExperiences((rows) => rows.filter((_, i) => i !== index))}
+            renderItem={(row, index) => (
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    placeholder="회사명"
+                    value={row.company}
+                    onChange={(e) =>
+                      setExperiences((rows) =>
+                        rows.map((r, i) => (i === index ? { ...r, company: e.target.value } : r))
+                      )
+                    }
+                    className={inputClass}
+                  />
+                  <input
+                    type="text"
+                    placeholder="역할 (예: 백엔드)"
+                    value={row.role}
+                    onChange={(e) =>
+                      setExperiences((rows) =>
+                        rows.map((r, i) => (i === index ? { ...r, role: e.target.value } : r))
+                      )
+                    }
+                    className={inputClass}
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="개월 수"
+                    value={row.months}
+                    onChange={(e) =>
+                      setExperiences((rows) =>
+                        rows.map((r, i) => (i === index ? { ...r, months: e.target.value } : r))
+                      )
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <input
+                  type="text"
+                  placeholder="업무 설명 (선택)"
+                  value={row.description}
                   onChange={(e) =>
                     setExperiences((rows) =>
-                      rows.map((r, i) => (i === index ? { ...r, role: e.target.value } : r))
+                      rows.map((r, i) => (i === index ? { ...r, description: e.target.value } : r))
+                    )
+                  }
+                  className={inputClass}
+                />
+              </div>
+            )}
+          />
+
+          {/* ③ 스킬 (선택 — 판정 정확도의 핵심 입력) */}
+          <ListSection
+            title="스킬"
+            addLabel="+ 스킬 추가"
+            items={skills}
+            onAdd={() => setSkills((rows) => [...rows, { name: "", years: "" }])}
+            onRemove={(index) => setSkills((rows) => rows.filter((_, i) => i !== index))}
+            renderItem={(row, index) => (
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="기술명 (예: Python)"
+                  value={row.name}
+                  onChange={(e) =>
+                    setSkills((rows) =>
+                      rows.map((r, i) => (i === index ? { ...r, name: e.target.value } : r))
                     )
                   }
                   className={inputClass}
@@ -260,78 +310,33 @@ export default function OnboardingPage() {
                 <input
                   type="number"
                   min={0}
-                  placeholder="개월 수"
-                  value={row.months}
+                  step="any" // 2.5년 같은 소수 연차 허용 — 기본 step=1이면 제출이 조용히 막힌다
+                  placeholder="사용 연차"
+                  value={row.years}
                   onChange={(e) =>
-                    setExperiences((rows) =>
-                      rows.map((r, i) => (i === index ? { ...r, months: e.target.value } : r))
+                    setSkills((rows) =>
+                      rows.map((r, i) => (i === index ? { ...r, years: e.target.value } : r))
                     )
                   }
                   className={inputClass}
                 />
               </div>
-              <input
-                type="text"
-                placeholder="업무 설명 (선택)"
-                value={row.description}
-                onChange={(e) =>
-                  setExperiences((rows) =>
-                    rows.map((r, i) => (i === index ? { ...r, description: e.target.value } : r))
-                  )
-                }
-                className={inputClass}
-              />
-            </div>
+            )}
+          />
+
+          {error !== null && (
+            <p className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-rose-600">{error}</p>
           )}
-        />
 
-        {/* ③ 스킬 (선택 — 판정 정확도의 핵심 입력) */}
-        <ListSection
-          title="스킬"
-          addLabel="+ 스킬 추가"
-          items={skills}
-          onAdd={() => setSkills((rows) => [...rows, { name: "", years: "" }])}
-          onRemove={(index) => setSkills((rows) => rows.filter((_, i) => i !== index))}
-          renderItem={(row, index) => (
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                placeholder="기술명 (예: Python)"
-                value={row.name}
-                onChange={(e) =>
-                  setSkills((rows) =>
-                    rows.map((r, i) => (i === index ? { ...r, name: e.target.value } : r))
-                  )
-                }
-                className={inputClass}
-              />
-              <input
-                type="number"
-                min={0}
-                step="any" // 2.5년 같은 소수 연차 허용 — 기본 step=1이면 제출이 조용히 막힌다
-                placeholder="사용 연차"
-                value={row.years}
-                onChange={(e) =>
-                  setSkills((rows) =>
-                    rows.map((r, i) => (i === index ? { ...r, years: e.target.value } : r))
-                  )
-                }
-                className={inputClass}
-              />
-            </div>
-          )}
-        />
-
-        {error !== null && <p className="text-sm text-red-600">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded-xl bg-indigo-200 py-2.5 text-sm font-semibold text-indigo-900 transition-colors hover:bg-indigo-300 disabled:opacity-60"
-        >
-          {submitting ? "저장 중…" : "저장하고 시작하기"}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-xl bg-indigo-200 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm shadow-indigo-100 transition-colors hover:bg-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? "저장 중…" : "저장하고 시작하기"}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }
@@ -354,22 +359,26 @@ function ListSection<T>({
 }) {
   return (
     <section>
-      <h2 className="text-sm font-semibold">{title}</h2>
+      <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
       <div className="mt-2 space-y-3">
         {items.map((item, index) => (
-          <div key={index} className="rounded-md border border-gray-200 p-3">
+          <div key={index} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
             {renderItem(item, index)}
             <button
               type="button"
               onClick={() => onRemove(index)}
-              className="mt-2 text-xs text-gray-400 hover:text-red-600"
+              className="mt-2 text-xs font-medium text-rose-300 hover:text-rose-500"
             >
               삭제
             </button>
           </div>
         ))}
       </div>
-      <button type="button" onClick={onAdd} className="mt-2 text-sm text-indigo-600">
+      <button
+        type="button"
+        onClick={onAdd}
+        className="mt-3 rounded-full bg-indigo-50 px-3.5 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+      >
         {addLabel}
       </button>
     </section>

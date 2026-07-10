@@ -62,71 +62,77 @@ export default function AnalyzeInputPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-4 py-16">
-      <h1 className="text-center text-2xl font-bold text-slate-800">이 공고, 나한테 맞을까?</h1>
-      <p className="mt-3 text-center text-sm text-slate-500">
-        채용공고 URL을 붙여넣으면 AI가 내 프로필과 비교해 적합도를 알려드려요.
-      </p>
-
-      {/* 입력 방식 토글 — URL / 본문 붙여넣기 폴백 */}
-      <div className="mt-8 flex justify-center gap-2">
-        <ModeButton active={mode === "url"} onClick={() => setMode("url")}>
-          URL로 분석
-        </ModeButton>
-        <ModeButton active={mode === "paste"} onClick={() => setMode("paste")}>
-          본문 붙여넣기
-        </ModeButton>
-      </div>
-
-      <form onSubmit={handleSubmit} className="mt-4">
-        {mode === "url" ? (
-          <input
-            type="url"
-            required
-            placeholder="https://www.wanted.co.kr/wd/..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm shadow-sm outline-none placeholder:text-slate-300 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-          />
-        ) : (
-          <textarea
-            required
-            rows={10}
-            placeholder="공고 본문을 통째로 붙여넣어 주세요 (수집이 안 되는 사이트도 분석할 수 있어요)"
-            value={pastedText}
-            onChange={(e) => setPastedText(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm shadow-sm outline-none placeholder:text-slate-300 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-          />
-        )}
-
-        {error !== null && <p className="mt-3 text-sm text-rose-500">{error}</p>}
-        {needsProfile && (
-          <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
-            분석하려면 프로필이 필요해요.{" "}
-            <Link href="/profile/onboarding" className="font-medium underline">
-              1분 만에 입력하기
-            </Link>
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-4 w-full rounded-xl bg-indigo-200 py-3.5 text-sm font-semibold text-indigo-900 transition-colors hover:bg-indigo-300 disabled:opacity-60"
-        >
-          {submitting ? "분석 중… (30초 정도 걸려요)" : "분석하기"}
-        </button>
-      </form>
-
-      {submitting && (
-        <p className="mt-4 text-center text-xs text-slate-400">
-          공고를 수집하고 프로필과 비교하는 중이에요. 잠시만 기다려 주세요.
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-violet-50 px-4 py-16">
+      <div className="w-full max-w-2xl rounded-3xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/60 sm:p-10">
+        <h1 className="text-center text-2xl font-bold text-slate-800">이 공고, 나한테 맞을까?</h1>
+        <p className="mt-3 text-center text-sm text-slate-500">
+          채용공고 URL을 붙여넣으면 AI가 내 프로필과 비교해 적합도를 알려드려요.
         </p>
-      )}
 
-      <p className="mt-10 text-center text-xs text-slate-400">
-        AI 분석은 참고용이에요. 최종 판단은 공고 원문을 확인한 뒤 해주세요.
-      </p>
+        {/* 입력 방식 토글 — URL / 본문 붙여넣기 폴백 */}
+        <div className="mt-8 flex justify-center gap-2 rounded-full bg-slate-50 p-1">
+          <ModeButton active={mode === "url"} onClick={() => setMode("url")}>
+            URL로 분석
+          </ModeButton>
+          <ModeButton active={mode === "paste"} onClick={() => setMode("paste")}>
+            본문 붙여넣기
+          </ModeButton>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-4">
+          {mode === "url" ? (
+            <input
+              type="url"
+              required
+              placeholder="https://www.wanted.co.kr/wd/..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm shadow-sm outline-none placeholder:text-slate-300 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+            />
+          ) : (
+            <textarea
+              required
+              rows={10}
+              placeholder="공고 본문을 통째로 붙여넣어 주세요 (수집이 안 되는 사이트도 분석할 수 있어요)"
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm shadow-sm outline-none placeholder:text-slate-300 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+            />
+          )}
+
+          {error !== null && (
+            <p className="mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-rose-600">
+              {error}
+            </p>
+          )}
+          {needsProfile && (
+            <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+              분석하려면 프로필이 필요해요.{" "}
+              <Link href="/profile/onboarding" className="font-medium underline">
+                1분 만에 입력하기
+              </Link>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="mt-4 w-full rounded-xl bg-indigo-200 py-3.5 text-sm font-semibold text-indigo-900 shadow-sm shadow-indigo-100 transition-colors hover:bg-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? "분석 중… (30초 정도 걸려요)" : "분석하기"}
+          </button>
+        </form>
+
+        {submitting && (
+          <p className="mt-4 text-center text-xs text-slate-400">
+            공고를 수집하고 프로필과 비교하는 중이에요. 잠시만 기다려 주세요.
+          </p>
+        )}
+
+        <p className="mt-10 text-center text-xs text-slate-400">
+          AI 분석은 참고용이에요. 최종 판단은 공고 원문을 확인한 뒤 해주세요.
+        </p>
+      </div>
     </main>
   );
 }
@@ -145,7 +151,9 @@ function ModeButton({
       type="button"
       onClick={onClick}
       className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
-        active ? "bg-indigo-100 font-medium text-indigo-800" : "text-slate-400 hover:text-slate-600"
+        active
+          ? "bg-white font-medium text-indigo-700 shadow-sm"
+          : "text-slate-400 hover:text-slate-600"
       }`}
     >
       {children}

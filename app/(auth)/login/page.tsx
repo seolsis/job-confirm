@@ -42,50 +42,54 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
-      <h1 className="text-xl font-bold">로그인</h1>
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-violet-50 px-4 py-12">
+      <div className="w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/60">
+        <h1 className="text-2xl font-bold text-slate-800">로그인</h1>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-        <label className="block text-sm">
-          이메일
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </label>
-        <label className="block text-sm">
-          비밀번호
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </label>
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <label className="block text-sm font-medium text-slate-700">
+            이메일
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition-colors focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+            />
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            비밀번호
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition-colors focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+            />
+          </label>
 
-        {error !== null && <p className="text-sm text-red-600">{error}</p>}
+          {error !== null && (
+            <p className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-rose-600">{error}</p>
+          )}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded-xl bg-indigo-200 py-2.5 text-sm font-semibold text-indigo-900 transition-colors hover:bg-indigo-300 disabled:opacity-60"
-        >
-          {submitting ? "로그인 중…" : "로그인"}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-xl bg-indigo-200 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm shadow-indigo-100 transition-colors hover:bg-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? "로그인 중…" : "로그인"}
+          </button>
+        </form>
 
-      <p className="mt-4 text-sm text-gray-600">
-        계정이 없으신가요?{" "}
-        <Link href="/signup" className="text-indigo-600 underline">
-          회원가입
-        </Link>
-      </p>
+        <p className="mt-6 text-center text-sm text-slate-500">
+          계정이 없으신가요?{" "}
+          <Link href="/signup" className="font-medium text-indigo-600 hover:text-indigo-700">
+            회원가입
+          </Link>
+        </p>
+      </div>
     </main>
   );
 }
