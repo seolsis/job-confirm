@@ -28,11 +28,17 @@ const JOBS_TABLE = "jobConfirm_analysis_jobs";
  * 잡 하나의 INSERT/UPDATE를 구독한다. 변경된 행 전체가 onChange로 전달되므로
  * 호출부는 그대로 클라이언트 상태(setState 등)에 넣으면 된다.
  * 반환값은 구독 해제 함수.
+ *
+ * onSubscribed: 채널 조인이 실제로 완료된(SUBSCRIBED) 시점에 호출된다.
+ * subscribe()는 비동기로 조인하므로 "구독 먼저 → 초기 조회"만으로는
+ * 초기 조회~조인 완료 사이의 전이를 놓칠 수 있다 — 호출부는 이 콜백에서
+ * 상태를 1회 재조회해 갭을 메운다 (M2-3 E2E에서 실측된 레이스).
  */
 export function subscribeToAnalysisJob(
   supabase: SupabaseClient,
   jobId: string,
-  onChange: (job: AnalysisJobRow) => void
+  onChange: (job: AnalysisJobRow) => void,
+  onSubscribed?: () => void
 ): () => void {
   const changeConfig = {
     schema: "public",
@@ -48,7 +54,16 @@ export function subscribeToAnalysisJob(
     // 잡 생성 직후 구독하는 경우를 위해 INSERT도 받는다 (대부분은 UPDATE)
     .on("postgres_changes", { ...changeConfig, event: "INSERT" }, handle)
     .on("postgres_changes", { ...changeConfig, event: "UPDATE" }, handle)
-    .subscribe();
+    .subscribe((status, err) => {
+      if (status === "SUBSCRIBED") {
+        onSubscribed?.();
+        return;
+      }
+      // 구독 실패는 조용히 묻히면 진행 UI가 멈춘 것처럼 보인다 — 원인 추적용 로그
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.error(`[realtime] 구독 실패 (job: ${jobId}, status: ${status})`, err);
+      }
+    });
 
   return () => {
     void supabase.removeChannel(channel);

@@ -69,19 +69,32 @@ export default function AnalysisJobPage({ params }: { params: Promise<{ jobId: s
   const [analysis, setAnalysis] = useState<MatchAnalysisRow | null>(null);
   const [resultError, setResultError] = useState<string | null>(null);
 
-  // 구독을 먼저 열고 초기 상태를 1회 조회한다 (lib/realtime/analysis-jobs.ts 사용 규칙)
+  // 구독을 먼저 열고 초기 상태를 1회 조회한다 (lib/realtime/analysis-jobs.ts 사용 규칙).
+  // 조인 완료(SUBSCRIBED) 시점에 한 번 더 조회한다 — 초기 조회~조인 완료 사이의
+  // 전이(예: scoring→done)를 놓치면 진행 화면이 이전 단계에 멈춘다 (M2-3 실측 레이스)
   useEffect(() => {
-    const unsubscribe = subscribeToAnalysisJob(supabase, jobId, setJob);
-    getAnalysisJob(supabase, jobId)
-      .then((row) => {
-        if (row === null) {
-          setJobError("분석을 찾을 수 없습니다. 주소를 확인하거나 로그인 상태를 확인해 주세요.");
-        } else {
-          // Realtime 이벤트가 먼저 도착했다면 더 새로운 상태를 덮어쓰지 않는다
-          setJob((current) => current ?? row);
-        }
-      })
-      .catch(() => setJobError("분석 상태를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."));
+    // Realtime 이벤트와 재조회의 도착 순서 역전 대비 — 더 새로운 행만 반영한다
+    const applyRow = (row: AnalysisJobRow): void => {
+      setJob((current) =>
+        current === null || new Date(row.updated_at) >= new Date(current.updated_at)
+          ? row
+          : current
+      );
+    };
+    const fetchJob = (): void => {
+      getAnalysisJob(supabase, jobId)
+        .then((row) => {
+          if (row === null) {
+            setJobError("분석을 찾을 수 없습니다. 주소를 확인하거나 로그인 상태를 확인해 주세요.");
+          } else {
+            applyRow(row);
+          }
+        })
+        .catch(() => setJobError("분석 상태를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."));
+    };
+
+    const unsubscribe = subscribeToAnalysisJob(supabase, jobId, applyRow, fetchJob);
+    fetchJob();
     return unsubscribe;
   }, [supabase, jobId]);
 

@@ -308,6 +308,7 @@ export default function OnboardingPage() {
               <input
                 type="number"
                 min={0}
+                step="any" // 2.5년 같은 소수 연차 허용 — 기본 step=1이면 제출이 조용히 막힌다
                 placeholder="사용 연차"
                 value={row.years}
                 onChange={(e) =>

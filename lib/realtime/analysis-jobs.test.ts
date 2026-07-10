@@ -18,17 +18,25 @@ interface Registration {
   callback: (payload: { new: Record<string, unknown> }) => void;
 }
 
+interface FakeChannel {
+  name: string;
+  registrations: Registration[];
+  subscribed: boolean;
+  /** subscribe()에 전달된 상태 콜백 — 조인 완료(SUBSCRIBED) 시뮬레이션용 */
+  statusCallback?: (status: string, err?: Error) => void;
+}
+
 function makeFakeSupabase(): {
   client: SupabaseClient;
-  channels: Array<{ name: string; registrations: Registration[]; subscribed: boolean }>;
+  channels: FakeChannel[];
   removed: string[];
 } {
-  const channels: Array<{ name: string; registrations: Registration[]; subscribed: boolean }> = [];
+  const channels: FakeChannel[] = [];
   const removed: string[] = [];
 
   const client = {
     channel(name: string) {
-      const entry = { name, registrations: [] as Registration[], subscribed: false };
+      const entry: FakeChannel = { name, registrations: [], subscribed: false };
       channels.push(entry);
       const channel = {
         on(
@@ -39,8 +47,9 @@ function makeFakeSupabase(): {
           entry.registrations.push({ ...config, callback });
           return channel;
         },
-        subscribe() {
+        subscribe(statusCallback?: (status: string, err?: Error) => void) {
           entry.subscribed = true;
+          entry.statusCallback = statusCallback;
           return channel;
         },
       };
@@ -111,6 +120,20 @@ describe("subscribeToAnalysisJob", () => {
     });
 
     expect(received[0].step).toBe("queued");
+  });
+
+  it("조인 완료(SUBSCRIBED) 시 onSubscribed를 호출한다 — 호출부 재조회로 조인 전 갭을 메운다", () => {
+    const { client, channels } = makeFakeSupabase();
+    let subscribedCount = 0;
+    subscribeToAnalysisJob(client, "job-1", () => {}, () => (subscribedCount += 1));
+
+    expect(subscribedCount).toBe(0); // 조인 완료 전에는 호출되지 않는다
+    channels[0].statusCallback?.("SUBSCRIBED");
+    expect(subscribedCount).toBe(1);
+
+    // 실패 상태에서는 호출되지 않는다 (로그만 남긴다)
+    channels[0].statusCallback?.("CHANNEL_ERROR", new Error("join failed"));
+    expect(subscribedCount).toBe(1);
   });
 
   it("반환된 함수를 호출하면 채널을 제거한다 (cleanup)", () => {
