@@ -47,13 +47,11 @@ describe("daysUntil (순수 함수 — D-day)", () => {
 });
 
 describe("APPLICATION_STATUSES", () => {
-  it("칸반 8단계를 PRD 순서대로 갖는다", () => {
+  it("칸반 6단계를 PRD 순서대로 갖는다", () => {
     expect(APPLICATION_STATUSES).toEqual([
       "interested",
-      "planned",
       "applied",
       "doc_passed",
-      "test_passed",
       "interview",
       "accepted",
       "rejected",

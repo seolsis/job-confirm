@@ -19,13 +19,17 @@ import { StorageError } from "./errors";
 
 const APPLICATIONS_TABLE = "jobConfirm_applications";
 
-/** DB enum "jobConfirm_application_status" — 칸반 8단계 (PRD 3.2 S7 컬럼 순서) */
+/**
+ * DB enum "jobConfirm_application_status" — 칸반 6단계 (PRD 3.2 S7 컬럼 순서).
+ * DB enum 자체는 8개 값(planned, test_passed 포함)을 갖지만, 관심 공고는 지원
+ * 예정과 사실상 동일하고 서류/필기 합격은 하나의 "합격" 단계로 충분해 보드에는
+ * 6단계만 노출한다. 기존 planned/test_passed 데이터는 interested/doc_passed로
+ * 병합해 둔다 (스키마 변경 없이 표시 단계만 줄인다).
+ */
 export const APPLICATION_STATUSES = [
   "interested",
-  "planned",
   "applied",
   "doc_passed",
-  "test_passed",
   "interview",
   "accepted",
   "rejected",

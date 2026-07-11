@@ -21,7 +21,7 @@ import { REJECTED_STAGES, STATUS_META } from "../status-meta";
 /**
  * S8 — 공고 카드 상세 (M3-4, PRD 3.1).
  *
- * 분석 결과 다시 보기(공용 AnalysisResult), 메모 작성, 상태 변경(8단계 자유 이동 —
+ * 분석 결과 다시 보기(공용 AnalysisResult), 메모 작성, 상태 변경(6단계 자유 이동 —
  * 불합격 선택 시 탈락 단계 기록), 마감 D-day, 원문 링크.
  * 상태·메모는 RLS가 허용하는 클라이언트 직접 update (이력은 DB 트리거).
  */
@@ -179,7 +179,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             )}
           </div>
 
-          {/* 상태 변경 — 8단계 자유 이동 (PRD 2.3) */}
+          {/* 상태 변경 — 6단계 자유 이동 (PRD 2.3) */}
           <div className="mt-5">
             <p className="text-xs text-stone-400">지금 어느 정거장이야?</p>
             <div className="mt-2 flex flex-wrap gap-1.5">

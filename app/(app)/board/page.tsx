@@ -19,11 +19,11 @@ import { STATUS_META } from "./status-meta";
 /**
  * S7 — 취준탭 칸반 보드 (M3-3, PRD 2.3·3.2).
  *
- * 8개 컬럼(관심→…→최종 합격/불합격), 카드는 회사·직무·적합도 뱃지·마감 D-day.
- * 드래그&드롭으로 상태 변경 — RLS가 본인 카드 update를 직접 허용하는 예외 경로이고
- * (ARCHITECTURE.md 4.2), 이력은 DB 트리거가 자동 기록한다.
+ * 6개 컬럼(관심→지원 완료→합격→면접 예정→최종 합격/불합격), 카드는 회사·직무·
+ * 적합도 뱃지·마감 D-day. 드래그&드롭으로 상태 변경 — RLS가 본인 카드 update를
+ * 직접 허용하는 예외 경로이고 (ARCHITECTURE.md 4.2), 이력은 DB 트리거가 자동 기록한다.
  * 불합격 컬럼으로 옮기면 이동 전 상태를 탈락 단계로 자동 기록한다 (PRD 2.3).
- * 8컬럼은 가로 스크롤로 대응한다 (PRD S7 — 모바일 탭 전환형은 추후).
+ * 컬럼은 flex-wrap으로 감싸 화면 폭에 맞게 줄바꿈한다 (가로 스크롤 없음).
  */
 export default function BoardPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
@@ -128,7 +128,7 @@ export default function BoardPage() {
       ) : cards.length === 0 ? (
         <EmptyBoard />
       ) : (
-        <div className="mt-8 flex gap-4 overflow-x-auto pb-6">
+        <div className="mx-auto mt-8 flex max-w-6xl flex-wrap justify-center gap-4 pb-6">
           {APPLICATION_STATUSES.map((status) => {
             const columnCards = cards.filter((c) => c.application.status === status);
             const meta = STATUS_META[status];
