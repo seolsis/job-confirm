@@ -9,8 +9,8 @@ import type { TokenUsage } from "./posting-extractions";
  * match_analyses 저장 계층 — AI_ANALYSIS_DESIGN.md 7.2
  *
  * 불변(append-only) — 재분석 시 새 행을 만든다. (user_id, posting) 기준 시계열이
- * 곧 "점수 변화 추적" 데이터다. update 함수는 의도적으로 만들지 않는다
- * (피드백 기록은 M4에서 별도 함수로).
+ * 곧 "점수 변화 추적" 데이터다. 분석 내용의 update 함수는 의도적으로 만들지 않는다.
+ * 유일한 예외는 사용자 피드백(feedback/feedback_reason) 갱신이다 (M4-2).
  * write는 service-role 클라이언트만 가능하다 (RLS: 본인 select만 허용).
  */
 
@@ -136,6 +136,37 @@ export async function saveMatchAnalysis(
       `매칭 분석 저장 실패 (extraction_id: ${analysis.extraction_id}): ${error.message}`,
       { cause: error }
     );
+  }
+  return data as MatchAnalysisRow;
+}
+
+/**
+ * 사용자 피드백 기록 (M4-2, PRD 4.1 F14) — 👍/👎와 👎 사유. null이면 철회.
+ * 결과 불변 원칙의 유일한 예외 컬럼. write는 service-role만 —
+ * 소유권 확인을 거쳐 /api 라우트로만 진입한다 (품질 모니터링 루프의 원천, 7.2).
+ */
+export async function updateAnalysisFeedback(
+  supabase: SupabaseClient,
+  analysisId: string,
+  feedback: AnalysisFeedback | null,
+  reason: string | null
+): Promise<MatchAnalysisRow> {
+  const trimmed = reason?.trim() ?? "";
+  const { data, error } = await supabase
+    .from(ANALYSES_TABLE)
+    .update({
+      feedback,
+      // 사유는 👎에만 의미가 있다 — 그 외에는 비워 혼동을 막는다
+      feedback_reason: feedback === "down" && trimmed !== "" ? trimmed : null,
+    })
+    .eq("id", analysisId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new StorageError(`피드백 저장 실패 (id: ${analysisId}): ${error.message}`, {
+      cause: error,
+    });
   }
   return data as MatchAnalysisRow;
 }

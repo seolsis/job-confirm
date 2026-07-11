@@ -4,7 +4,12 @@ import { describe, expect, it } from "vitest";
 import type { MatchResult } from "@/lib/ai/match-schemas";
 
 import { StorageError } from "./errors";
-import { getLatestMatchAnalysis, saveMatchAnalysis, type NewMatchAnalysis } from "./match-analyses";
+import {
+  getLatestMatchAnalysis,
+  saveMatchAnalysis,
+  updateAnalysisFeedback,
+  type NewMatchAnalysis,
+} from "./match-analyses";
 
 /**
  * match_analyses 저장 계층 단위 테스트 — 실제 Supabase는 호출하지 않는다.
@@ -162,5 +167,57 @@ describe("getLatestMatchAnalysis", () => {
 
     const { client: errorClient } = makeFakeSelectSupabase({ selectError: { message: "boom" } });
     await expect(getLatestMatchAnalysis(errorClient, "ext-1")).rejects.toThrowError(StorageError);
+  });
+});
+
+describe("updateAnalysisFeedback (M4-2)", () => {
+  function makeUpdateFake(): {
+    client: SupabaseClient;
+    updates: Array<{ values: Record<string, unknown>; filters: Array<[string, unknown]> }>;
+  } {
+    const updates: Array<{ values: Record<string, unknown>; filters: Array<[string, unknown]> }> =
+      [];
+    const client = {
+      from: () => ({
+        update(values: Record<string, unknown>) {
+          const filters: Array<[string, unknown]> = [];
+          updates.push({ values, filters });
+          return {
+            eq(key: string, value: unknown) {
+              filters.push([key, value]);
+              return {
+                select: () => ({
+                  single: async () => ({ data: { id: "analysis-1", ...values }, error: null }),
+                }),
+              };
+            },
+          };
+        },
+      }),
+    } as unknown as SupabaseClient;
+    return { client, updates };
+  }
+
+  it("👎는 사유와 함께 기록한다", async () => {
+    const { client, updates } = makeUpdateFake();
+    await updateAnalysisFeedback(client, "analysis-1", "down", "  점수가 이상해요  ");
+
+    expect(updates[0].values).toEqual({ feedback: "down", feedback_reason: "점수가 이상해요" });
+    expect(updates[0].filters).toEqual([["id", "analysis-1"]]);
+  });
+
+  it("👍와 철회(null)는 사유를 비운다", async () => {
+    const { client, updates } = makeUpdateFake();
+    await updateAnalysisFeedback(client, "analysis-1", "up", "무시될 사유");
+    await updateAnalysisFeedback(client, "analysis-1", null, null);
+
+    expect(updates[0].values).toEqual({ feedback: "up", feedback_reason: null });
+    expect(updates[1].values).toEqual({ feedback: null, feedback_reason: null });
+  });
+
+  it("👎에 빈 사유는 null로 저장한다", async () => {
+    const { client, updates } = makeUpdateFake();
+    await updateAnalysisFeedback(client, "analysis-1", "down", "   ");
+    expect(updates[0].values).toEqual({ feedback: "down", feedback_reason: null });
   });
 });

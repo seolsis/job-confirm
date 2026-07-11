@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
+
+import { getQuotaStatus, type QuotaStatus } from "@/lib/quota";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 /**
  * S4 — 메인 공고 입력 (PRD 3.2). "동물 친구들의 모험" 컨셉:
@@ -49,6 +52,23 @@ function AnalyzeInputForm() {
   const [showTutorial, setShowTutorial] = useState(
     () => typeof window !== "undefined" && window.localStorage.getItem(TUTORIAL_SEEN_KEY) === null
   );
+
+  // M4-1 — 남은 분석 횟수 (usage_logs는 RLS 본인 select라 브라우저에서 집계 가능)
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const [quota, setQuota] = useState<QuotaStatus | null>(null);
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user === null) return;
+      try {
+        setQuota(await getQuotaStatus(supabase, user.id));
+      } catch {
+        // 표시용 정보라 실패해도 조용히 넘어간다 (제출 시 서버가 판정)
+      }
+    })();
+  }, [supabase]);
 
   function dismissTutorial() {
     window.localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
@@ -242,6 +262,21 @@ function AnalyzeInputForm() {
               {submitting ? "친구들이 분석하는 중… 🐾" : "분석 부탁하기 🔍"}
             </button>
           </form>
+
+          {/* 남은 분석 횟수 (M4-1, PRD S4) — 캐시 히트 재조회는 차감되지 않는다 */}
+          {quota !== null && (
+            <p
+              className={`mt-4 text-center text-xs ${
+                quota.remaining === 0
+                  ? "text-rose-500"
+                  : quota.remaining <= 2
+                    ? "text-amber-600"
+                    : "text-stone-400"
+              }`}
+            >
+              🎟️ 이번 달 남은 분석 {quota.remaining}회 / {quota.limit}회
+            </p>
+          )}
 
           {/* 제출 중 — 친구들이 순서대로 일하러 가는 연출 (hop + 시차) */}
           {submitting && (

@@ -155,6 +155,7 @@ function makeFakeSupabase(seed: Partial<Record<string, Row[]>> = {}): {
     jobConfirm_posting_extractions: [],
     jobConfirm_analysis_jobs: [],
     jobConfirm_match_analyses: [],
+    jobConfirm_usage_logs: [],
     ...seed,
   };
   const jobUpdates: Row[] = [];
@@ -210,14 +211,20 @@ function makeFakeSupabase(seed: Partial<Record<string, Row[]>> = {}): {
           return chain;
         },
         insert(values: Row) {
+          const push = () => {
+            const row = { ...defaults(table), ...values };
+            rows.push(row);
+            return row;
+          };
           return {
             select: () => ({
-              single: async () => {
-                const row = { ...defaults(table), ...values };
-                rows.push(row);
-                return { data: row, error: null };
-              },
+              single: async () => ({ data: push(), error: null }),
             }),
+            // await insert() — usage_logs 기록 경로 (행 반환 없이 thenable)
+            then(resolve: (result: { error: null }) => void) {
+              push();
+              resolve({ error: null });
+            },
           };
         },
         update(values: Row) {
@@ -351,6 +358,19 @@ describe("runAnalysisPipeline — 성공 경로", () => {
 
     expect(result.extractionCacheHit).toBe(false);
     expect(result.job.step).toBe("done");
+
+    // 사용 기록 (M4-1) — 성공한 분석은 extraction/match 2행, 둘 다 캐시 미스
+    expect(tables.jobConfirm_usage_logs).toHaveLength(2);
+    expect(tables.jobConfirm_usage_logs[0]).toMatchObject({
+      user_id: USER_ID,
+      kind: "extraction",
+      was_cache_hit: false,
+    });
+    expect(tables.jobConfirm_usage_logs[1]).toMatchObject({
+      user_id: USER_ID,
+      kind: "match",
+      was_cache_hit: false,
+    });
   });
 
   it("URL 캐시 히트: 수집·구조화(LLM #1)를 건너뛰고 matching으로 직행한다 (6.2)", async () => {
@@ -377,6 +397,18 @@ describe("runAnalysisPipeline — 성공 경로", () => {
     expect(result.extraction.id).toBe("extraction-cached");
     expect(tables.jobConfirm_posting_extractions).toHaveLength(1); // 새 행 없음
     expect(jobsOf(tables)[0].posting_id).toBe("posting-cached");
+
+    // 사용 기록 — extraction은 캐시 히트(미차감), match만 차감 대상
+    expect(tables.jobConfirm_usage_logs).toHaveLength(2);
+    expect(tables.jobConfirm_usage_logs[0]).toMatchObject({
+      kind: "extraction",
+      was_cache_hit: true,
+      token_usage: null,
+    });
+    expect(tables.jobConfirm_usage_logs[1]).toMatchObject({
+      kind: "match",
+      was_cache_hit: false,
+    });
   });
 
   it("붙여넣기 폴백: manual_paste로 동일 파이프라인을 완주한다 (8장)", async () => {

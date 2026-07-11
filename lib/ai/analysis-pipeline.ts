@@ -12,6 +12,7 @@ import { saveMatchAnalysis, type MatchAnalysisRow } from "@/lib/db/match-analyse
 import type { PostingExtractionRow } from "@/lib/db/posting-extractions";
 import { insertJobPosting, type JobPostingRow } from "@/lib/db/postings";
 import { getProfileSnapshotById, type ProfileSnapshotRow } from "@/lib/db/profile-snapshots";
+import { logUsage, type NewUsageLog } from "@/lib/db/usage-logs";
 import { manualPastePosting, scrapeJobPosting, ScrapeError } from "@/lib/scraper";
 
 import { ExtractPostingError, extractAndStorePosting } from "./extraction-service";
@@ -212,7 +213,32 @@ async function executeSteps(
   });
   const doneJob = await updateAnalysisJobStep(supabase, job.id, "done");
 
+  // ── 사용 기록 (M4-1, 6.2) — 성공한 분석만 차감한다 (실패 시 미차감, 8장).
+  // 캐시 히트 extraction은 was_cache_hit=true로 남긴다 (미차감 + 히트율 통계).
+  // 기록 실패가 완료된 분석을 무너뜨리면 안 되므로 오류는 로그만 남긴다.
+  await logUsageSafe(supabase, {
+    userId: request.userId,
+    kind: "extraction",
+    wasCacheHit: extractionCacheHit,
+    tokenUsage: extractionCacheHit ? null : extraction.token_usage,
+  });
+  await logUsageSafe(supabase, {
+    userId: request.userId,
+    kind: "match",
+    wasCacheHit: false,
+    tokenUsage: match.tokenUsage,
+  });
+
   return { job: doneJob, posting, extraction, analysis, extractionCacheHit };
+}
+
+/** 사용 기록 — 실패해도 분석 결과를 삼키지 않는다 (쿼터는 다음 분석에서 재집계) */
+async function logUsageSafe(supabase: SupabaseClient, log: NewUsageLog): Promise<void> {
+  try {
+    await logUsage(supabase, log);
+  } catch (logError) {
+    console.error(`[pipeline] 사용 기록 실패 (user: ${log.userId}, kind: ${log.kind})`, logError);
+  }
 }
 
 /**

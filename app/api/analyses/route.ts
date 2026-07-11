@@ -9,6 +9,7 @@ import { createAiClient } from "@/lib/ai/client";
 import type { JobErrorCode } from "@/lib/db/analysis-jobs";
 import { getOrCreateProfileSnapshot } from "@/lib/db/profile-snapshots";
 import { ensureProfile, toProfileSnapshot } from "@/lib/db/profiles";
+import { getQuotaStatus } from "@/lib/quota";
 import { parseHttpUrl } from "@/lib/scraper/url";
 import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
@@ -34,7 +35,7 @@ const ERROR_STATUS: Record<JobErrorCode, number> = {
   fetch_failed: 422,
   not_a_posting: 422,
   llm_error: 502,
-  quota_exceeded: 429, // 쿼터 판정(lib/quota)은 M4 — 매핑만 준비해 둔다
+  quota_exceeded: 429, // provider 한도(파이프라인 내부) — 무료 쿼터는 아래에서 사전 차단
 };
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -89,10 +90,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     toProfileSnapshot(profile)
   );
 
-  // 4. 파이프라인 실행 — 잡 생성부터 done/failed 마감까지 내부에서 처리된다
+  // 4. 무료 쿼터 사전 차단 (M4-1) — 잡을 만들기 전에 거절한다.
+  //    파이프라인 성공 시 usage_logs에 차감이 기록된다 (실패·캐시 히트는 미차감).
+  const service = createServiceRoleSupabaseClient();
+  const quota = await getQuotaStatus(service, user.id);
+  if (quota.remaining <= 0) {
+    return NextResponse.json(
+      {
+        error: `이번 달 무료 분석 ${quota.limit}회를 모두 사용했습니다`,
+        code: "quota_exceeded",
+        quota,
+      },
+      { status: 429 }
+    );
+  }
+
+  // 5. 파이프라인 실행 — 잡 생성부터 done/failed 마감까지 내부에서 처리된다
   try {
     const result = await runAnalysisPipeline(
-      { anthropic: createAiClient(), supabase: createServiceRoleSupabaseClient() },
+      { anthropic: createAiClient(), supabase: service },
       {
         userId: user.id,
         profileSnapshotId: snapshot.id,

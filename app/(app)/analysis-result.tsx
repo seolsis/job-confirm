@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
+
 import type { JudgmentVerdict } from "@/lib/ai/match-schemas";
-import type { MatchAnalysisRow } from "@/lib/db/match-analyses";
+import type { AnalysisFeedback, MatchAnalysisRow } from "@/lib/db/match-analyses";
 
 /**
  * 부엉 박사의 분석 리포트 — S6(분석 결과)와 S8(카드 상세의 다시 보기)이 공유한다.
  * 표시 전용(순수 렌더링) — 데이터 조회·저장은 각 화면의 몫.
+ * 예외: 하단의 피드백(👍/👎, M4-2)만 여기서 직접 저장한다 — 두 화면 모두에
+ * 같은 위치·같은 동작으로 노출돼야 하기 때문이다 (PUT /api/analyses/{id}/feedback).
  */
 
 /** 등급 라벨 (AI_ANALYSIS_DESIGN.md 5.2 등급 구간) */
@@ -193,11 +197,126 @@ export function AnalysisResult({ analysis }: { analysis: MatchAnalysisRow }) {
         </ResultSection>
       )}
 
+      {/* 피드백 (M4-2) — 품질 모니터링 루프의 입력 (PRD 7.2) */}
+      <FeedbackSection
+        analysisId={analysis.id}
+        initialFeedback={analysis.feedback}
+        initialReason={analysis.feedback_reason}
+      />
+
       {/* 신뢰 장치 (PRD S6) */}
       <p className="pt-2 text-center text-xs text-stone-400">
         친구들의 분석은 참고용이에요. 최종 판단은 공고 원문을 확인한 뒤 해주세요.
       </p>
     </div>
+  );
+}
+
+/** 👍/👎 피드백 — 같은 버튼을 다시 누르면 철회, 👎는 사유(선택)를 함께 보낸다 */
+function FeedbackSection({
+  analysisId,
+  initialFeedback,
+  initialReason,
+}: {
+  analysisId: string;
+  initialFeedback: AnalysisFeedback | null;
+  initialReason: string | null;
+}) {
+  const [feedback, setFeedback] = useState<AnalysisFeedback | null>(initialFeedback);
+  const [reason, setReason] = useState(initialReason ?? "");
+  const [reasonSent, setReasonSent] = useState(initialReason !== null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
+
+  async function save(next: AnalysisFeedback | null, nextReason: string): Promise<boolean> {
+    setSaving(true);
+    setError(false);
+    let ok = false;
+    try {
+      const response = await fetch(`/api/analyses/${analysisId}/feedback`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ feedback: next, reason: nextReason }),
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      setFeedback(next);
+      if (next !== "down") {
+        setReason("");
+        setReasonSent(false);
+      }
+      ok = true;
+    } catch {
+      setError(true);
+    }
+    setSaving(false);
+    return ok;
+  }
+
+  return (
+    <section className="rounded-[2rem] border-2 border-amber-100 bg-white p-6 text-center shadow-[0_4px_0_#fde68a]">
+      <p className="text-sm text-stone-600">이 분석, 도움이 됐어?</p>
+      <div className="mt-3 flex justify-center gap-2">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void save(feedback === "up" ? null : "up", "")}
+          className={`rounded-full px-5 py-2 text-sm transition-transform hover:-translate-y-0.5 disabled:opacity-60 ${
+            feedback === "up"
+              ? "bg-emerald-100 text-emerald-700"
+              : "border-2 border-amber-100 bg-white text-stone-500"
+          }`}
+        >
+          👍 도움됐어
+        </button>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void save(feedback === "down" ? null : "down", reason)}
+          className={`rounded-full px-5 py-2 text-sm transition-transform hover:-translate-y-0.5 disabled:opacity-60 ${
+            feedback === "down"
+              ? "bg-rose-100 text-rose-700"
+              : "border-2 border-amber-100 bg-white text-stone-500"
+          }`}
+        >
+          👎 아쉬워
+        </button>
+      </div>
+
+      {feedback === "down" && (
+        <div className="mx-auto mt-4 max-w-md">
+          <textarea
+            rows={2}
+            placeholder="어떤 점이 아쉬웠는지 알려주면 친구들이 더 똑똑해져! (선택)"
+            value={reason}
+            onChange={(e) => {
+              setReason(e.target.value);
+              setReasonSent(false);
+            }}
+            className="w-full rounded-2xl border-2 border-amber-100 bg-white px-4 py-3 text-sm text-stone-700 outline-none placeholder:text-stone-300 focus:border-amber-300"
+          />
+          <div className="mt-1 flex items-center justify-between">
+            <span className="text-xs text-emerald-600">{reasonSent ? "✅ 전달했어!" : ""}</span>
+            <button
+              type="button"
+              disabled={saving || reason.trim() === ""}
+              onClick={() =>
+                void save("down", reason).then((ok) => {
+                  if (ok) setReasonSent(true);
+                })
+              }
+              className="rounded-full border-2 border-amber-100 bg-white px-4 py-1.5 text-xs text-stone-500 transition-colors hover:bg-amber-50 disabled:opacity-50"
+            >
+              사유 보내기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {feedback === "up" && <p className="mt-3 text-xs text-emerald-600">고마워! 🎉</p>}
+      {error && (
+        <p className="mt-3 text-xs text-rose-500">저장하지 못했어… 잠시 후 다시 시도해 줘.</p>
+      )}
+    </section>
   );
 }
 
