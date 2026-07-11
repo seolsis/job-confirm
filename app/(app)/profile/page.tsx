@@ -266,13 +266,20 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-100 via-[#fef6e4] to-[#fef6e4] px-4 py-10">
-      {/* 상단 내비 — 분석 화면으로 */}
-      <nav className="fixed top-4 right-4 z-10">
+      {/* 상단 내비 — 분석 화면·설정으로 */}
+      <nav className="fixed top-4 right-4 z-10 flex gap-2">
         <Link
           href="/analyze"
           className="flex items-center gap-1.5 rounded-full border-2 border-amber-100 bg-white/90 px-4 py-2 text-sm text-stone-600 shadow-sm transition-transform hover:-translate-y-0.5"
         >
           <span aria-hidden>🔍</span> 공고 분석하러 가기
+        </Link>
+        <Link
+          href="/settings"
+          aria-label="설정"
+          className="flex items-center rounded-full border-2 border-amber-100 bg-white/90 px-3 py-2 text-sm text-stone-600 shadow-sm transition-transform hover:-translate-y-0.5"
+        >
+          <span aria-hidden>⚙️</span>
         </Link>
       </nav>
 

@@ -104,6 +104,13 @@ export default function BoardPage() {
         >
           <span aria-hidden>🐥</span> 내 프로필
         </Link>
+        <Link
+          href="/settings"
+          aria-label="설정"
+          className="flex items-center rounded-full border-2 border-amber-100 bg-white/90 px-3 py-2 text-sm text-stone-600 shadow-sm transition-transform hover:-translate-y-0.5"
+        >
+          <span aria-hidden>⚙️</span>
+        </Link>
       </nav>
 
       <h1 className="text-center text-2xl text-stone-700">취준 여행 보드 🗂️</h1>

@@ -12,9 +12,15 @@ import { Suspense, useState, type FormEvent } from "react";
  * POST /api/analyses는 파이프라인을 동기로 완주하므로(수십 초) 제출 중에는
  * 친구들이 일하는 연출을 보여주고, 성공/실패 모두 jobId가 있으면
  * S6(/analyze/{jobId})로 이동한다 — 실패한 잡도 error_code 안내를 S6가 표시한다.
+ *
+ * 첫 진입에는 여행 안내(S13 온보딩 튜토리얼, 간이)를 보여준다 — localStorage로
+ * 1회만. 닫으면 다시 나오지 않는다.
  */
 
 type InputMode = "url" | "paste";
+
+/** S13 튜토리얼 "봤음" 플래그 — 기기(브라우저) 단위로 충분해 localStorage 사용 */
+const TUTORIAL_SEEN_KEY = "jobConfirm.tutorialSeen";
 
 /** useSearchParams는 정적 페이지에서 Suspense 경계가 필요하다 (Next 규칙) */
 export default function AnalyzeInputPage() {
@@ -36,6 +42,18 @@ function AnalyzeInputForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsProfile, setNeedsProfile] = useState(false);
+
+  // S13 — 첫 진입에만 여행 안내를 보여준다. 이 컴포넌트는 useSearchParams로
+  // Suspense 경계까지 클라이언트 렌더링되므로 초기값에서 localStorage를 읽어도
+  // 서버 HTML과 불일치가 생기지 않는다 (typeof window 가드는 방어용).
+  const [showTutorial, setShowTutorial] = useState(
+    () => typeof window !== "undefined" && window.localStorage.getItem(TUTORIAL_SEEN_KEY) === null
+  );
+
+  function dismissTutorial() {
+    window.localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+    setShowTutorial(false);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,17 +94,83 @@ function AnalyzeInputForm() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-sky-100 via-[#fef6e4] to-[#fef6e4] px-4 py-16">
-      {/* 상단 내비 — 프로필 관리(S9) 진입점 (상시 노출) */}
-      <nav className="fixed top-4 right-4 z-10">
+      {/* 상단 내비 — 취준탭(S7)·프로필(S9)·설정(S10) 진입점 (상시 노출) */}
+      <nav className="fixed top-4 right-4 z-10 flex gap-2">
+        <Link
+          href="/board"
+          className="flex items-center gap-1.5 rounded-full border-2 border-amber-100 bg-white/90 px-4 py-2 text-sm text-stone-600 shadow-sm transition-transform hover:-translate-y-0.5"
+        >
+          <span aria-hidden>🗂️</span> 취준 보드
+        </Link>
         <Link
           href="/profile"
           className="flex items-center gap-1.5 rounded-full border-2 border-amber-100 bg-white/90 px-4 py-2 text-sm text-stone-600 shadow-sm transition-transform hover:-translate-y-0.5"
         >
           <span aria-hidden>🐥</span> 내 프로필
         </Link>
+        <Link
+          href="/settings"
+          aria-label="설정"
+          className="flex items-center rounded-full border-2 border-amber-100 bg-white/90 px-3 py-2 text-sm text-stone-600 shadow-sm transition-transform hover:-translate-y-0.5"
+        >
+          <span aria-hidden>⚙️</span>
+        </Link>
       </nav>
 
       <div className="w-full max-w-2xl">
+        {/* S13 — 첫 여행 안내 (간이 온보딩 튜토리얼, 1회 노출) */}
+        {showTutorial && !submitting && (
+          <div className="animate-pop-in mb-8 rounded-[2rem] border-2 border-sky-100 bg-white/90 p-6 shadow-[0_4px_0_#bae6fd]">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-base text-stone-700">🗺️ 처음 왔구나! 여행은 이렇게 진행돼</h2>
+              <button
+                type="button"
+                onClick={dismissTutorial}
+                aria-label="안내 닫기"
+                className="shrink-0 rounded-full px-2 text-stone-300 transition-colors hover:text-stone-500"
+              >
+                ✕
+              </button>
+            </div>
+            <ol className="mt-4 space-y-3 text-sm text-stone-600">
+              <li className="flex items-start gap-3">
+                <span className="text-2xl" aria-hidden>
+                  🔗
+                </span>
+                <span>
+                  <strong className="text-stone-700">① 공고를 건네줘</strong> — 채용공고 URL을
+                  붙여넣으면 돼. 안 열리는 사이트는 본문 붙여넣기로!
+                </span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-2xl" aria-hidden>
+                  🐾
+                </span>
+                <span>
+                  <strong className="text-stone-700">② 친구들이 분석해</strong> — 다람이가 물어오고,
+                  부엉 박사가 정리하고, 토돌이가 네 프로필과 비교해 줘.
+                </span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-2xl" aria-hidden>
+                  🗂️
+                </span>
+                <span>
+                  <strong className="text-stone-700">③ 보드에 모아 관리해</strong> — 결과 화면에서
+                  [취준탭에 저장]을 누르면 관심 공고부터 최종 합격까지 한눈에 관리할 수 있어.
+                </span>
+              </li>
+            </ol>
+            <p className="mt-4 text-xs text-stone-400">
+              💡{" "}
+              <Link href="/profile" className="underline">
+                프로필
+              </Link>
+              을 채울수록 분석이 정확해져!
+            </p>
+          </div>
+        )}
+
         {/* 토돌이의 인사 */}
         <div className="text-center">
           <span
