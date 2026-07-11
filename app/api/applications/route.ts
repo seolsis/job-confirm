@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { createApplication } from "@/lib/db/applications";
+import { createApplication, findSimilarApplication } from "@/lib/db/applications";
 import { getMatchAnalysisById } from "@/lib/db/match-analyses";
 import { getExtractionById } from "@/lib/db/posting-extractions";
 import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
@@ -56,5 +56,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     analysisId,
   });
 
-  return NextResponse.json({ applicationId: row.id, status: row.status, alreadySaved });
+  // 유사 공고 감지 (P1, PRD 7.1 #4) — 같은 회사·직무 카드가 이미 있으면 알려준다
+  // (다른 URL로 같은 공고를 저장한 경우). 저장 자체는 막지 않는다.
+  const similar = await findSimilarApplication(service, {
+    userId: user.id,
+    companyName: extraction.company_name,
+    jobTitle: extraction.job_title,
+    excludePostingId: extraction.posting_id,
+  });
+
+  return NextResponse.json({
+    applicationId: row.id,
+    status: row.status,
+    alreadySaved,
+    similarApplicationId: similar?.id ?? null,
+  });
 }

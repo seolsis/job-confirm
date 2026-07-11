@@ -172,6 +172,53 @@ export async function updateApplicationStatus(
   return data as ApplicationRow;
 }
 
+/** 카드 일정 항목 — applications.schedule jsonb의 원소 (P1: 면접일 등 입력) */
+export interface ScheduleEntry {
+  /** interview | test | deadline | other */
+  type: string;
+  /** YYYY-MM-DD */
+  at: string;
+  note?: string;
+}
+
+/** 일정 저장 (클라이언트 직접 update — RLS 본인만). 배열 전체를 교체한다 */
+export async function updateApplicationSchedule(
+  supabase: SupabaseClient,
+  applicationId: string,
+  schedule: ScheduleEntry[]
+): Promise<ApplicationRow> {
+  const { data, error } = await supabase
+    .from(APPLICATIONS_TABLE)
+    .update({ schedule })
+    .eq("id", applicationId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new StorageError(`일정 저장 실패 (id: ${applicationId}): ${error.message}`, {
+      cause: error,
+    });
+  }
+  return data as ApplicationRow;
+}
+
+/**
+ * 다가오는 일정 중 가장 가까운 것 (순수 함수) — 보드 카드의 일정 칩용.
+ * 오늘 포함 미래 일정만 대상, 없으면 null.
+ */
+export function nextUpcomingSchedule(
+  schedule: ScheduleEntry[],
+  now: () => Date = () => new Date()
+): ScheduleEntry | null {
+  const upcoming = schedule
+    .filter((entry) => {
+      const dday = daysUntil(entry.at, now);
+      return dday !== null && dday >= 0;
+    })
+    .sort((a, b) => a.at.localeCompare(b.at));
+  return upcoming[0] ?? null;
+}
+
 /** 메모 저장 (클라이언트 직접 update — RLS 본인만) */
 export async function updateApplicationMemo(
   supabase: SupabaseClient,
@@ -313,6 +360,56 @@ export async function listApplicationCards(supabase: SupabaseClient): Promise<Ap
     application,
     ...(joins.get(application.id) as Omit<ApplicationCard, "application">),
   }));
+}
+
+/**
+ * 유사 공고 감지 (P1, PRD 7.1 #4) — 같은 회사·직무의 카드가 이미 있는지.
+ * 다른 URL(사람인/원티드/자사)로 같은 공고를 저장하는 경우를 잡는다.
+ * 정확 일치(회사명+직무명)만 본다 — 과잉 경고를 피하기 위해 느슨한 매칭은 하지 않는다.
+ * service-role 전용 (extractions를 회사·직무로 역조회하므로 /api/applications에서 호출).
+ */
+export async function findSimilarApplication(
+  supabase: SupabaseClient,
+  params: {
+    userId: string;
+    companyName: string | null;
+    jobTitle: string | null;
+    /** 지금 저장하려는 공고 자신은 제외 */
+    excludePostingId: string;
+  }
+): Promise<ApplicationRow | null> {
+  if (params.companyName === null || params.jobTitle === null) return null;
+
+  const { data: extractions, error: extractionsError } = await supabase
+    .from("jobConfirm_posting_extractions")
+    .select("posting_id")
+    .eq("company_name", params.companyName)
+    .eq("job_title", params.jobTitle)
+    .neq("posting_id", params.excludePostingId);
+  if (extractionsError) {
+    throw new StorageError(`유사 공고 조회 실패: ${extractionsError.message}`, {
+      cause: extractionsError,
+    });
+  }
+
+  const postingIds = [
+    ...new Set(((extractions ?? []) as Array<{ posting_id: string }>).map((e) => e.posting_id)),
+  ];
+  if (postingIds.length === 0) return null;
+
+  const { data: application, error: applicationError } = await supabase
+    .from(APPLICATIONS_TABLE)
+    .select("*")
+    .eq("user_id", params.userId)
+    .in("posting_id", postingIds)
+    .limit(1)
+    .maybeSingle();
+  if (applicationError) {
+    throw new StorageError(`유사 카드 조회 실패: ${applicationError.message}`, {
+      cause: applicationError,
+    });
+  }
+  return (application as ApplicationRow | null) ?? null;
 }
 
 /** 카드 상세(S8)용 — 단건 + 표시 필드 */

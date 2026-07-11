@@ -139,6 +139,19 @@ export default function SignupPage() {
           </button>
         </form>
 
+        {/* 약관 동의 고지 (M4-5) */}
+        <p className="mt-4 text-center text-xs text-stone-400">
+          가입하면{" "}
+          <Link href="/terms" className="underline">
+            이용약관
+          </Link>
+          과{" "}
+          <Link href="/privacy" className="underline">
+            개인정보처리방침
+          </Link>
+          에 동의하는 것으로 봐요.
+        </p>
+
         <p className="mt-6 text-center text-sm text-stone-500">
           이미 친구라면{" "}
           <Link href="/login" className="text-amber-600 underline">

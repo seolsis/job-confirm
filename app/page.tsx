@@ -110,6 +110,14 @@ export default function LandingPage() {
           </Link>
         </div>
 
+        {/* 비로그인 체험 진입 (M4-3, PRD 2.5 전환 퍼널) */}
+        <Link
+          href="/try"
+          className="mt-4 text-sm text-stone-500 underline decoration-amber-300 decoration-2 underline-offset-4 transition-colors hover:text-stone-700"
+        >
+          가입 없이 공고 정리 체험해 보기 🦉
+        </Link>
+
         <p className="absolute bottom-8 animate-float text-sm text-stone-400" aria-hidden>
           아래로 스크롤해서 같이 가보자 ⬇️
         </p>

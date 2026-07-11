@@ -182,7 +182,12 @@ function SaveToBoardButton({ analysisId }: { analysisId: string }) {
   const [state, setState] = useState<
     | { kind: "idle" }
     | { kind: "saving" }
-    | { kind: "saved"; applicationId: string; alreadySaved: boolean }
+    | {
+        kind: "saved";
+        applicationId: string;
+        alreadySaved: boolean;
+        similarApplicationId: string | null;
+      }
     | { kind: "error" }
   >({ kind: "idle" });
 
@@ -194,12 +199,17 @@ function SaveToBoardButton({ analysisId }: { analysisId: string }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ analysisId }),
       });
-      const data = (await response.json()) as { applicationId?: string; alreadySaved?: boolean };
+      const data = (await response.json()) as {
+        applicationId?: string;
+        alreadySaved?: boolean;
+        similarApplicationId?: string | null;
+      };
       if (typeof data.applicationId === "string") {
         setState({
           kind: "saved",
           applicationId: data.applicationId,
           alreadySaved: data.alreadySaved === true,
+          similarApplicationId: data.similarApplicationId ?? null,
         });
       } else {
         setState({ kind: "error" });
@@ -217,6 +227,16 @@ function SaveToBoardButton({ analysisId }: { analysisId: string }) {
             ? "이미 보드에 있던 공고야 — 최신 분석으로 이어뒀어!"
             : "보드에 담았어! 🎒"}
         </p>
+        {/* 유사 공고 안내 (P1) — 다른 URL로 같은 공고를 저장한 경우 */}
+        {state.similarApplicationId !== null && (
+          <p className="mx-auto mt-3 max-w-md rounded-2xl border-2 border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+            👀 같은 회사·직무의{" "}
+            <Link href={`/board/${state.similarApplicationId}`} className="underline">
+              카드가 이미 보드에 있어
+            </Link>
+            . 같은 공고라면 한쪽만 관리하는 게 좋아!
+          </p>
+        )}
         <div className="mt-3 flex justify-center gap-3">
           <Link
             href={`/board/${state.applicationId}`}

@@ -7,6 +7,7 @@ import {
   APPLICATION_STATUSES,
   daysUntil,
   listApplicationCards,
+  nextUpcomingSchedule,
   updateApplicationStatus,
   type ApplicationCard,
   type ApplicationStatus,
@@ -25,12 +26,25 @@ import { STATUS_META } from "./status-meta";
  * 불합격 컬럼으로 옮기면 이동 전 상태를 탈락 단계로 자동 기록한다 (PRD 2.3).
  * 컬럼은 flex-wrap으로 감싸 화면 폭에 맞게 줄바꿈한다 (가로 스크롤 없음).
  */
+/** 정렬 기준 (P1, PRD S7 상단 바) */
+type SortKey = "recent" | "deadline" | "score";
+
+const SORT_LABELS: Record<SortKey, string> = {
+  recent: "최신순",
+  deadline: "마감 임박순",
+  score: "점수순",
+};
+
 export default function BoardPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [cards, setCards] = useState<ApplicationCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ApplicationStatus | null>(null);
+
+  // 필터/정렬/검색 (P1) — 클라이언트에서만 적용, 저장 데이터는 건드리지 않는다
+  const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("recent");
 
   useEffect(() => {
     listApplicationCards(supabase)
@@ -88,6 +102,32 @@ export default function BoardPage() {
     if (applicationId !== "") void moveCard(applicationId, status);
   }
 
+  /** 검색·정렬 적용 (P1) — 검색은 회사명·직무명 부분 일치, 정렬은 컬럼 내 순서 */
+  function visibleCards(status: ApplicationStatus): ApplicationCard[] {
+    const keyword = query.trim().toLowerCase();
+    const filtered = (cards ?? []).filter((c) => {
+      if (c.application.status !== status) return false;
+      if (keyword === "") return true;
+      return (
+        (c.company_name ?? "").toLowerCase().includes(keyword) ||
+        (c.job_title ?? "").toLowerCase().includes(keyword)
+      );
+    });
+    return [...filtered].sort((a, b) => {
+      if (sortKey === "deadline") {
+        // 마감 없는 카드는 뒤로, 지난 마감도 뒤로
+        const da = daysUntil(a.deadline_date);
+        const db = daysUntil(b.deadline_date);
+        const rank = (d: number | null) => (d === null || d < 0 ? Number.MAX_SAFE_INTEGER : d);
+        return rank(da) - rank(db);
+      }
+      if (sortKey === "score") {
+        return (b.score ?? -1) - (a.score ?? -1);
+      }
+      return b.application.created_at.localeCompare(a.application.created_at);
+    });
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-100 via-[#fef6e4] to-[#fef6e4] px-4 py-10">
       {/* 상단 내비 */}
@@ -118,6 +158,35 @@ export default function BoardPage() {
         카드를 끌어서 다음 정거장으로 옮길 수 있어
       </p>
 
+      {/* 상단 바 — 검색 + 정렬 (P1, PRD S7) */}
+      {cards !== null && cards.length > 0 && (
+        <div className="mx-auto mt-5 flex max-w-xl flex-wrap items-center justify-center gap-2">
+          <input
+            type="search"
+            placeholder="🔍 회사·직무 검색"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-56 rounded-full border-2 border-amber-100 bg-white px-4 py-2 text-sm text-stone-700 outline-none placeholder:text-stone-300 focus:border-amber-300"
+          />
+          <div className="flex gap-1 rounded-full bg-white/70 p-1">
+            {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSortKey(key)}
+                className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
+                  sortKey === key
+                    ? "bg-amber-200 text-amber-900"
+                    : "text-stone-400 hover:text-stone-600"
+                }`}
+              >
+                {SORT_LABELS[key]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error !== null && (
         <p className="mx-auto mt-4 max-w-md rounded-2xl border-2 border-rose-100 bg-rose-50 px-4 py-3 text-center text-sm text-rose-600">
           🥺 {error}
@@ -137,7 +206,7 @@ export default function BoardPage() {
       ) : (
         <div className="mx-auto mt-8 flex max-w-6xl flex-wrap justify-center gap-4 pb-6">
           {APPLICATION_STATUSES.map((status) => {
-            const columnCards = cards.filter((c) => c.application.status === status);
+            const columnCards = visibleCards(status);
             const meta = STATUS_META[status];
             return (
               <section
@@ -177,9 +246,20 @@ export default function BoardPage() {
   );
 }
 
-/** 카드 — 회사·직무·적합도 뱃지·D-day (PRD S7). 드래그 가능, 클릭하면 상세(S8) */
+/** 일정 종류별 아이콘 (S8 입력과 동일 분류) */
+const SCHEDULE_ICONS: Record<string, string> = {
+  interview: "🎤",
+  test: "✏️",
+  deadline: "⏰",
+  other: "📅",
+};
+
+/** 카드 — 회사·직무·적합도 뱃지·D-day·다가오는 일정 (PRD S7). 드래그 가능, 클릭하면 상세(S8) */
 function BoardCard({ card }: { card: ApplicationCard }) {
   const dday = daysUntil(card.deadline_date);
+  // 마감 지난 공고는 흐리게 (PRD 7.1 #3 — 마감 뱃지 + 시각 구분)
+  const expired = dday !== null && dday < 0;
+  const upcoming = nextUpcomingSchedule(card.application.schedule);
 
   return (
     <Link
@@ -189,7 +269,9 @@ function BoardCard({ card }: { card: ApplicationCard }) {
         e.dataTransfer.setData("text/plain", card.application.id);
         e.dataTransfer.effectAllowed = "move";
       }}
-      className="block cursor-grab rounded-2xl border-2 border-amber-100 bg-white p-3 shadow-[0_3px_0_#fde68a] transition-transform hover:-translate-y-0.5 active:cursor-grabbing"
+      className={`block cursor-grab rounded-2xl border-2 border-amber-100 bg-white p-3 shadow-[0_3px_0_#fde68a] transition-transform hover:-translate-y-0.5 active:cursor-grabbing ${
+        expired ? "opacity-60" : ""
+      }`}
     >
       <p className="text-xs text-stone-400">{card.company_name ?? "회사명 없음"}</p>
       <p className="mt-0.5 line-clamp-2 text-sm text-stone-700">
@@ -204,6 +286,14 @@ function BoardCard({ card }: { card: ApplicationCard }) {
           </span>
         )}
         <DdayChip dday={dday} />
+        {upcoming !== null && (
+          <span
+            className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] text-violet-600"
+            title={upcoming.note ?? undefined}
+          >
+            {SCHEDULE_ICONS[upcoming.type] ?? "📅"} {upcoming.at.slice(5).replace("-", "/")}
+          </span>
+        )}
         {card.application.memo !== null && (
           <span aria-label="메모 있음" title="메모 있음" className="text-[11px]">
             📝

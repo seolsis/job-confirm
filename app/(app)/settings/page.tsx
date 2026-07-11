@@ -156,6 +156,25 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* 약관·정책 (M4-5) */}
+        <section className="mt-6 rounded-[2rem] border-2 border-amber-100 bg-white p-6 shadow-[0_4px_0_#fde68a]">
+          <h2 className="text-base text-stone-700">📜 약관과 정책</h2>
+          <div className="mt-3 flex flex-wrap gap-2 text-sm">
+            <Link
+              href="/terms"
+              className="rounded-full border-2 border-amber-100 bg-white px-4 py-2 text-stone-600 transition-transform hover:-translate-y-0.5"
+            >
+              이용약관
+            </Link>
+            <Link
+              href="/privacy"
+              className="rounded-full border-2 border-amber-100 bg-white px-4 py-2 text-stone-600 transition-transform hover:-translate-y-0.5"
+            >
+              개인정보처리방침
+            </Link>
+          </div>
+        </section>
+
         {/* 알림 — MVP 미제공 (정직하게 준비 중 표시) */}
         <section className="mt-6 rounded-[2rem] border-2 border-amber-100 bg-white p-6 shadow-[0_4px_0_#fde68a]">
           <h2 className="text-base text-stone-700">🔔 알림</h2>

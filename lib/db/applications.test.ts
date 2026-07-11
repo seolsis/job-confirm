@@ -5,8 +5,11 @@ import {
   APPLICATION_STATUSES,
   createApplication,
   daysUntil,
+  findSimilarApplication,
   listApplicationCards,
+  nextUpcomingSchedule,
   updateApplicationMemo,
+  updateApplicationSchedule,
   updateApplicationStatus,
   type ApplicationRow,
 } from "./applications";
@@ -239,5 +242,125 @@ describe("listApplicationCards (배치 조인)", () => {
     } as unknown as SupabaseClient;
 
     await expect(listApplicationCards(client)).resolves.toEqual([]);
+  });
+});
+
+describe("nextUpcomingSchedule (순수 함수 — 보드 일정 칩)", () => {
+  const now = () => new Date(2026, 6, 11); // 2026-07-11
+
+  it("오늘 포함 미래 일정 중 가장 가까운 것을 고른다", () => {
+    const schedule = [
+      { type: "interview", at: "2026-07-25" },
+      { type: "test", at: "2026-07-15" },
+      { type: "deadline", at: "2026-07-01" }, // 지남 — 제외
+    ];
+    expect(nextUpcomingSchedule(schedule, now)).toEqual({ type: "test", at: "2026-07-15" });
+    expect(nextUpcomingSchedule([{ type: "other", at: "2026-07-11" }], now)).toEqual({
+      type: "other",
+      at: "2026-07-11",
+    });
+  });
+
+  it("다가오는 일정이 없으면 null", () => {
+    expect(nextUpcomingSchedule([], now)).toBeNull();
+    expect(nextUpcomingSchedule([{ type: "interview", at: "2026-07-01" }], now)).toBeNull();
+  });
+});
+
+describe("updateApplicationSchedule", () => {
+  it("schedule 배열 전체를 교체한다", async () => {
+    const { client, updates } = makeWriteFake({});
+    const schedule = [{ type: "interview", at: "2026-07-25", note: "2차" }];
+    await updateApplicationSchedule(client, "app-1", schedule);
+
+    expect(updates[0].values).toEqual({ schedule });
+    expect(updates[0].filters).toEqual([["id", "app-1"]]);
+  });
+});
+
+describe("findSimilarApplication (유사 공고 감지)", () => {
+  function makeSimilarFake(options: {
+    extractionRows: Array<{ posting_id: string }>;
+    applicationRow: ApplicationRow | null;
+  }): { client: SupabaseClient; queries: Array<{ table: string; filters: unknown[] }> } {
+    const queries: Array<{ table: string; filters: unknown[] }> = [];
+    const client = {
+      from(table: string) {
+        const record = { table, filters: [] as unknown[] };
+        queries.push(record);
+        const rows =
+          table === "jobConfirm_posting_extractions"
+            ? options.extractionRows
+            : options.applicationRow !== null
+              ? [options.applicationRow]
+              : [];
+        const chain = {
+          select: () => chain,
+          eq(key: string, value: unknown) {
+            record.filters.push(["eq", key, value]);
+            return chain;
+          },
+          neq(key: string, value: unknown) {
+            record.filters.push(["neq", key, value]);
+            return chain;
+          },
+          in(key: string, value: unknown) {
+            record.filters.push(["in", key, value]);
+            return chain;
+          },
+          limit: () => chain,
+          maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
+          then(resolve: (r: { data: unknown[]; error: null }) => void) {
+            resolve({ data: rows, error: null });
+          },
+        };
+        return chain;
+      },
+    } as unknown as SupabaseClient;
+    return { client, queries };
+  }
+
+  it("같은 회사·직무의 내 카드를 찾는다 (저장하려는 공고 자신은 제외)", async () => {
+    const { client, queries } = makeSimilarFake({
+      extractionRows: [{ posting_id: "posting-other" }],
+      applicationRow: sampleApp,
+    });
+    const found = await findSimilarApplication(client, {
+      userId: "user-1",
+      companyName: "토끼전자",
+      jobTitle: "프론트엔드 개발자",
+      excludePostingId: "posting-new",
+    });
+
+    expect(found?.id).toBe("app-1");
+    expect(queries[0].filters).toEqual([
+      ["eq", "company_name", "토끼전자"],
+      ["eq", "job_title", "프론트엔드 개발자"],
+      ["neq", "posting_id", "posting-new"],
+    ]);
+    expect(queries[1].filters).toEqual([
+      ["eq", "user_id", "user-1"],
+      ["in", "posting_id", ["posting-other"]],
+    ]);
+  });
+
+  it("회사·직무가 없거나(추출 실패) 일치 공고가 없으면 null", async () => {
+    const { client } = makeSimilarFake({ extractionRows: [], applicationRow: null });
+    await expect(
+      findSimilarApplication(client, {
+        userId: "user-1",
+        companyName: null,
+        jobTitle: "직무",
+        excludePostingId: "p",
+      })
+    ).resolves.toBeNull();
+    await expect(
+      findSimilarApplication(client, {
+        userId: "user-1",
+        companyName: "회사",
+        jobTitle: "직무",
+        excludePostingId: "p",
+      })
+    ).resolves.toBeNull();
   });
 });
