@@ -24,7 +24,10 @@ import { STATUS_META } from "./status-meta";
  * 적합도 뱃지·마감 D-day. 드래그&드롭으로 상태 변경 — RLS가 본인 카드 update를
  * 직접 허용하는 예외 경로이고 (ARCHITECTURE.md 4.2), 이력은 DB 트리거가 자동 기록한다.
  * 불합격 컬럼으로 옮기면 이동 전 상태를 탈락 단계로 자동 기록한다 (PRD 2.3).
- * 컬럼은 flex-wrap으로 감싸 화면 폭에 맞게 줄바꿈한다 (가로 스크롤 없음).
+ * 컬럼은 grid로 배치한다 — 넓은 화면(lg+)에서는 6개가 한 줄로, 좁은 화면은
+ * 2~3열로 접힌다 (가로 스크롤 없음). 각 컬럼은 처음부터 넉넉한 최소 높이를
+ * 가진 드롭 존이고, 카드가 쌓여 한 화면을 넘으면 자연스럽게 더 길어진다
+ * (내부 스크롤 없이 페이지 전체가 늘어난다).
  */
 /** 정렬 기준 (P1, PRD S7 상단 바) */
 type SortKey = "recent" | "deadline" | "score";
@@ -204,7 +207,7 @@ export default function BoardPage() {
       ) : cards.length === 0 ? (
         <EmptyBoard />
       ) : (
-        <div className="mx-auto mt-8 flex max-w-6xl flex-wrap justify-center gap-4 pb-6">
+        <div className="mx-auto mt-8 grid max-w-[1600px] grid-cols-2 gap-4 pb-6 sm:grid-cols-3 lg:grid-cols-6">
           {APPLICATION_STATUSES.map((status) => {
             const columnCards = visibleCards(status);
             const meta = STATUS_META[status];
@@ -217,7 +220,7 @@ export default function BoardPage() {
                 }}
                 onDragLeave={() => setDragOverColumn((c) => (c === status ? null : c))}
                 onDrop={(e) => handleDrop(e, status)}
-                className={`w-64 shrink-0 rounded-[1.5rem] border-2 p-3 transition-colors ${
+                className={`flex min-h-[70vh] flex-col rounded-[1.5rem] border-2 p-3 transition-colors ${
                   dragOverColumn === status
                     ? "border-amber-300 bg-amber-50"
                     : "border-amber-100 bg-white/70"
@@ -227,16 +230,17 @@ export default function BoardPage() {
                   <span aria-hidden>{meta.emoji}</span> {meta.label}
                   <span className="ml-1 text-xs text-stone-300">{columnCards.length}</span>
                 </h2>
-                <div className="mt-3 space-y-3">
-                  {columnCards.map((card) => (
-                    <BoardCard key={card.application.id} card={card} />
-                  ))}
-                  {columnCards.length === 0 && (
-                    <p className="rounded-xl border-2 border-dashed border-stone-100 py-6 text-center text-xs text-stone-300">
-                      여기로 끌어다 놓기
-                    </p>
-                  )}
-                </div>
+                {columnCards.length === 0 ? (
+                  <p className="mt-3 flex flex-1 items-center justify-center rounded-xl border-2 border-dashed border-stone-100 text-center text-xs text-stone-300">
+                    여기로 끌어다 놓기
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    {columnCards.map((card) => (
+                      <BoardCard key={card.application.id} card={card} />
+                    ))}
+                  </div>
+                )}
               </section>
             );
           })}
