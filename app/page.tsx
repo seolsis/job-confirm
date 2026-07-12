@@ -82,7 +82,9 @@ export default function LandingPage() {
           🎈🐻
         </div>
         <div className="bubble bubble-center mt-6 max-w-xs text-sm text-stone-600">
-          안녕! 취업 준비, 혼자 하면 외롭잖아. 우리랑 같이 갈래?
+          안녕! 취업 준비, 혼자 하면 외롭잖아.
+          <br />
+          우리랑 같이 갈래?
         </div>
 
         <h1 className="mt-8 text-4xl leading-snug text-stone-700 sm:text-5xl">
@@ -159,7 +161,12 @@ export default function LandingPage() {
             emoji="🐿️"
             name="다람이"
             role="공고 배달"
-            description="URL만 주면 공고를 통째로 물어와. 못 가져오는 곳은 네가 붙여넣어 주면 돼!"
+            description={
+              <>
+                URL만 주면 공고를 통째로 물어와.
+                <br />못 가져오는 곳은 네가 붙여넣어 주면 돼!
+              </>
+            }
           />
           <FriendCard
             emoji="🦉"
@@ -171,7 +178,13 @@ export default function LandingPage() {
             emoji="🐰"
             name="토돌이"
             role="나랑 비교"
-            description="네 프로필과 공고를 하나하나 비교해서 적합도 점수를 계산해 줘."
+            description={
+              <>
+                네 프로필과 공고를 하나하나 비교해서
+                <br />
+                적합도 점수를 계산해 줘.
+              </>
+            }
           />
         </div>
       </section>
@@ -183,7 +196,8 @@ export default function LandingPage() {
             🏝️
           </div>
           <div className="bubble bubble-center mx-auto mt-6 max-w-xs text-sm text-stone-600">
-            도착! 이제 네 차례야. 첫 공고를 분석해 볼까? — 🦉 부엉 박사
+            도착! 이제 네 차례야.
+            <br />첫 공고를 분석해 볼까? — 🦉 부엉 박사
           </div>
           <Link
             href="/signup"
@@ -230,7 +244,7 @@ function FriendCard({
   emoji: string;
   name: string;
   role: string;
-  description: string;
+  description: React.ReactNode;
 }) {
   return (
     <div className="reveal rounded-[2rem] border-2 border-amber-100 bg-white p-6 text-center shadow-[0_4px_0_#fde68a] transition-transform hover:-translate-y-1">
