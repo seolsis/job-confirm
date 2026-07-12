@@ -733,7 +733,8 @@ export default function ProfilePage() {
 
           {/* 💼 경력 */}
           <SectionCard title="💼 경력">
-            <label className="flex items-center gap-2 text-sm text-stone-600">
+            {/* 커스텀 체크박스 — 네이티브 input은 숨기고(peer) 테마에 맞는 박스를 그린다 */}
+            <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-full border-2 border-amber-100 bg-white py-2 pr-4 pl-2.5 text-sm text-stone-600 transition-colors select-none hover:bg-amber-50 has-checked:border-amber-300 has-checked:bg-amber-100 has-checked:text-amber-900">
               <input
                 type="checkbox"
                 checked={noExperience}
@@ -741,9 +742,15 @@ export default function ProfilePage() {
                   setNoExperience(e.target.checked);
                   if (e.target.checked) setExperiences([]);
                 }}
-                className="h-4 w-4 rounded border-2 border-amber-200 text-amber-500 focus:ring-amber-300"
+                className="peer sr-only"
               />
-              경력 없음 (신입이에요)
+              <span
+                aria-hidden
+                className="flex h-5 w-5 items-center justify-center rounded-lg border-2 border-amber-200 bg-white text-[11px] text-transparent transition-all peer-checked:border-amber-400 peer-checked:bg-amber-400 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-amber-300"
+              >
+                ✓
+              </span>
+              🐣 경력 없음 (신입이에요)
             </label>
 
             {!noExperience && (
