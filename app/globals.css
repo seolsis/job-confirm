@@ -188,3 +188,43 @@ body {
     transform: none;
   }
 }
+
+/* ── 희망 연봉 듀얼 레인지 슬라이더 — 트랙은 투명, 썸만 클릭 가능 ────────────
+   input 2개를 겹쳐 각자의 썸만 hit-test 되게 하는 CSS-only 기법
+   (app/(app)/profile/page.tsx의 SalaryRangeSlider). */
+.range-thumb {
+  height: 0;
+  background: transparent;
+}
+.range-thumb::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.range-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 3px solid #f59e0b;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+.range-thumb::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+.range-thumb::-moz-range-thumb {
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 3px solid #f59e0b;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+.range-thumb:focus {
+  outline: none;
+}
